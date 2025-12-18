@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* =========================
+       Core Surfaces
+       ========================= */
+    --background: 220 20% 98%;
+    --foreground: 222 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 25% 15%;
+
+    /* =========================
+       Brand Primary (Red)
+       rgba(253, 67, 70, 1)
+       ========================= */
+    --primary: 359 98% 63%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Success / Tips */
+    --secondary: 152 55% 45%; /* Soft green */
+    --secondary-foreground: 0 0% 100%;
+
+    /* =========================
+       UI Neutrals
+       ========================= */
+    --muted: 220 15% 95%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 359 98% 63%;
+    --accent-foreground: 0 0% 100%;
+
+    /* =========================
+       Feedback
+       ========================= */
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* =========================
+       Borders & Inputs
+       ========================= */
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 359 98% 63%;
+
+    /* =========================
+       Radius
+       ========================= */
+    --radius: 0.75rem;
+
+    /* =========================
+       Charts & Analytics
+       ========================= */
+    --chart-1: 359 98% 63%; /* Red */
+    --chart-2: 152 55% 45%; /* Green */
+    --chart-3: 220 70% 55%; /* Blue */
+    --chart-4: 35 90% 55%;  /* Gold */
+    --chart-5: 260 60% 60%; /* Purple */
+  }
+
+  /* =========================
+     Dark Mode (Red-friendly)
+     ========================= */
+  :root[class~='dark'] {
+    --background: 222 25% 8%;
+    --foreground: 220 20% 95%;
+
+    --card: 222 25% 11%;
+    --card-foreground: 220 20% 95%;
+
+    --popover: 222 25% 11%;
+    --popover-foreground: 220 20% 95%;
+
+    --primary: 359 98% 68%;
+    --primary-foreground: 222 25% 8%;
+
+    --secondary: 152 55% 50%;
+    --secondary-foreground: 222 25% 8%;
+
+    --muted: 222 20% 16%;
+    --muted-foreground: 220 15% 65%;
+
+    --accent: 359 98% 68%;
+    --accent-foreground: 222 25% 8%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 220 20% 95%;
+
+    --border: 222 20% 18%;
+    --input: 222 20% 18%;
+    --ring: 359 98% 68%;
+
+    --chart-1: 359 98% 68%;
+    --chart-2: 152 55% 50%;
+    --chart-3: 220 70% 60%;
+    --chart-4: 35 90% 60%;
+    --chart-5: 260 60% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
