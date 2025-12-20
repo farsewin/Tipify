@@ -3,8 +3,8 @@ import { StaffHeader } from './_components/staff-header';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE } from '@/config';
-import { getUserType } from '@/src/modules/shared/helpers/access-control';
-import { UnauthenticatedError } from '@/src/modules/shared/errors/auth';
+import { getUserType } from '@/src/shared/helpers/access-control';
+import { UnauthenticatedError } from '@/src/shared/errors/auth';
 
 export default async function StaffLayout({
   children,

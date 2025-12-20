@@ -16,8 +16,8 @@ import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
 import { processTipPayment } from '../../../app/actions';
 import { toast } from 'sonner';
-import type { Company } from '@/src/modules/company/company.model';
-import type { StaffProfile } from '@/src/modules/staff/staff-profile.model';
+import type { Company } from '@/src/models/company.model';
+import type { StaffProfile } from '@/src/models/staff-profile.model';
 
 interface StaffTippingPageProps {
   company: Company;
@@ -58,16 +58,15 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('companyId', company.id);
-      formData.append('branchId', staff.branchId);
-      formData.append('staffProfileId', staff.id);
-      formData.append('amount', amountInCents.toString());
-      formData.append('currency', company.currency);
-      if (note) formData.append('customerNote', note);
-      if (rating) formData.append('customerRating', rating.toString());
-
-      const result = await processTipPayment(formData);
+      const result = await processTipPayment({
+        companyId: company.id,
+        branchId: staff.branchId,
+        staffProfileId: staff.id,
+        amount: amountInCents,
+        currency: company.currency,
+        customerNote: note || undefined,
+        customerRating: rating || undefined,
+      });
 
       if (result?.error) {
         toast.error(result.error);

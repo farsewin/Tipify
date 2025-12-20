@@ -8,7 +8,7 @@ import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
 import { updateCompanySettings } from '../../actions';
 import { toast } from 'sonner';
-import type { Company } from '@/src/modules/company/company.model';
+import type { Company } from '@/src/models/company.model';
 
 interface UpdateCompanyFormProps {
   company: Company;
@@ -29,14 +29,13 @@ export default function UpdateCompanyForm({ company }: UpdateCompanyFormProps) {
     setLoading(true);
 
     try {
-      const form = new FormData();
-      form.append('companyId', company.id);
-      form.append('name', formData.name);
-      if (formData.legalName) form.append('legalName', formData.legalName);
-      form.append('country', formData.country);
-      form.append('currency', formData.currency);
-
-      const result = await updateCompanySettings(form);
+      const result = await updateCompanySettings({
+        companyId: company.id,
+        name: formData.name,
+        legalName: formData.legalName || undefined,
+        country: formData.country,
+        currency: formData.currency,
+      });
 
       if (result?.error) {
         toast.error(result.error);

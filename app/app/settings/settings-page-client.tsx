@@ -13,8 +13,8 @@ import { Building2, User, Users } from 'lucide-react';
 import UpdateCompanyForm from './company/update-company-form';
 import UpdateAccountForm from './account/update-account-form';
 import UpdatePasswordForm from './account/update-password-form';
-import type { Company } from '@/src/modules/company/company.model';
-import type { User as UserType } from '@/src/modules/auth/user.model';
+import type { Company } from '@/src/models/company.model';
+import type { User as UserType } from '@/src/models/user.model';
 
 interface SettingsPageClientProps {
   company: Company;

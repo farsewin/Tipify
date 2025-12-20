@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { AuthenticationService } from '@/src/infrastructure/services/authentication.service';
+import { AuthenticationService } from '@/src/services/authentication.service';
 import { SESSION_COOKIE } from '@/config';
 
 const authenticationService = new AuthenticationService();

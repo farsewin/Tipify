@@ -8,7 +8,7 @@ import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
 import { updateAccountSettings } from '../../actions';
 import { toast } from 'sonner';
-import type { User } from '@/src/modules/auth/user.model';
+import type { User } from '@/src/models/user.model';
 
 interface UpdateAccountFormProps {
   user: User;
@@ -27,11 +27,10 @@ export default function UpdateAccountForm({ user }: UpdateAccountFormProps) {
     setLoading(true);
 
     try {
-      const form = new FormData();
-      form.append('name', formData.name);
-      form.append('email', formData.email);
-
-      const result = await updateAccountSettings(form);
+      const result = await updateAccountSettings({
+        name: formData.name,
+        email: formData.email,
+      });
 
       if (result?.error) {
         toast.error(result.error);

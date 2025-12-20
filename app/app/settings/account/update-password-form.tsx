@@ -34,12 +34,11 @@ export default function UpdatePasswordForm() {
     setLoading(true);
 
     try {
-      const form = new FormData();
-      form.append('currentPassword', formData.currentPassword);
-      form.append('newPassword', formData.newPassword);
-      form.append('confirmPassword', formData.confirmPassword);
-
-      const result = await updatePassword(form);
+      const result = await updatePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+        confirmPassword: formData.confirmPassword,
+      });
 
       if (result?.error) {
         toast.error(result.error);

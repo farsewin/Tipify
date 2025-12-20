@@ -112,10 +112,14 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
 
     setLoading(true);
     const formData = new FormData(event.currentTarget);
-    formData.append('branchId', editingBranch.id);
-    formData.append('companyId', companyId);
-
-    const result = await updateBranch(formData);
+    
+    const result = await updateBranch({
+      branchId: editingBranch.id,
+      companyId: companyId,
+      name: formData.get('name') as string,
+      location: formData.get('location') as string || null,
+      timezone: formData.get('timezone') as string,
+    });
     
     if (result?.error) {
       toast.error(result.error);
@@ -135,9 +139,13 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
 
     setCreateLoading(true);
     const formData = new FormData(event.currentTarget);
-    formData.append('companyId', companyId);
-
-    const result = await createBranch(formData);
+    
+    const result = await createBranch({
+      companyId: companyId,
+      name: formData.get('name') as string,
+      location: formData.get('location') as string || undefined,
+      timezone: formData.get('timezone') as string || undefined,
+    });
     
     if (result?.error) {
       toast.error(result.error);
@@ -156,12 +164,12 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     if (toggleLoading === branch.id) return;
     
     setToggleLoading(branch.id);
-    const formData = new FormData();
-    formData.append('branchId', branch.id);
-    formData.append('companyId', companyId);
-    formData.append('active', (!branch.active).toString());
 
-    const result = await updateBranch(formData);
+    const result = await updateBranch({
+      branchId: branch.id,
+      companyId: companyId,
+      active: !branch.active,
+    });
     
     if (result?.error) {
       toast.error(result.error);

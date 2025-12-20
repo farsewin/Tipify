@@ -36,7 +36,16 @@ export default function SignUp() {
     }
 
     setLoading(true);
-    const res = await signUp(formData);
+    const res = await signUp({
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      password: password,
+      confirmPassword: confirmPassword,
+      companyName: formData.get('company_name') as string,
+      companyLegalName: formData.get('company_legal_name') as string || undefined,
+      country: formData.get('country') as string,
+      currency: formData.get('currency') as string,
+    });
     if (res && res.error) {
       setError(res.error);
     }

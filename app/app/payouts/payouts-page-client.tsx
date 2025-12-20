@@ -24,8 +24,8 @@ import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
 import { createPayoutBatch, getPayoutBatchDetails, completePayoutBatch, getTips, getStaff } from '../actions';
 import { toast } from 'sonner';
-import type { Branch } from '@/src/modules/branch/branch.model';
-import type { PayoutBatch } from '@/src/modules/payouts/payout-batch.model';
+import type { Branch } from '@/src/models/branch.model';
+import type { PayoutBatch } from '@/src/models/payout-batch.model';
 
 interface PayoutBatchListItem {
   id: string;
@@ -188,13 +188,12 @@ export default function PayoutsPageClient({
     setCreateLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('companyId', companyId);
-      if (selectedBranchId) formData.append('branchId', selectedBranchId);
-      formData.append('payoutDate', payoutDate);
-      formData.append('tipIds', Array.from(selectedTipIds).join(','));
-
-      const result = await createPayoutBatch(formData);
+      const result = await createPayoutBatch({
+        companyId: companyId,
+        branchId: selectedBranchId || undefined,
+        payoutDate: payoutDate,
+        tipIds: Array.from(selectedTipIds),
+      });
 
       if (result?.error) {
         toast.error(result.error);

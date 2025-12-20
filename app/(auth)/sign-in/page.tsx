@@ -28,7 +28,10 @@ export default function SignIn() {
     const formData = new FormData(event.currentTarget);
 
     setLoading(true);
-    const res = await signIn(formData);
+    const res = await signIn({
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+    });
     if (res && res.error) {
       setError(res.error);
     }

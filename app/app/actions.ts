@@ -1,37 +1,140 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { SESSION_COOKIE } from '@/config';
-import { InputParseError } from '@/src/modules/shared/errors/common';
+import { SESSION_COOKIE, PASSWORD_SALT_ROUNDS } from '@/config';
+import { z } from 'zod';
+import { hash } from 'bcrypt-ts';
+import { generateIdFromEntropySize } from 'lucia';
 import {
-  AuthenticationError,
+  getBranchesRepository,
+  getCompaniesRepository,
+  getStaffProfilesRepository,
+  getUsersRepository,
+  getCompanyMembersRepository,
+  getTipsRepository,
+  getPayoutBatchesRepository,
+  getPayoutItemsRepository,
+  getAuthenticationService,
+  getTransactionManagerService,
+  getQRCodeService,
+  getPaymentService,
+} from '@/src/service-locator';
+import {
+  validateCompanyAccess,
+  getUserCompanies,
+} from '@/src/shared/helpers/access-control';
+import {
+  InputParseError,
+  NotFoundError,
+} from '@/src/shared/errors/common';
+import {
   UnauthenticatedError,
   UnauthorizedError,
-} from '@/src/modules/shared/errors/auth';
-import { createBranchController } from '@/src/modules/branch/create/create-branch.controller';
-import { getBranchesController } from '@/src/modules/branch/list/get-branches.controller';
-import { updateBranchController } from '@/src/modules/branch/update/update-branch.controller';
-import { getCompanyController } from '@/src/modules/company/get/get-company.controller';
-import { getUserCompanies } from '@/src/modules/shared/helpers/access-control';
-import { getAuthenticationService } from '@/src/service-locator';
-import { createStaffProfileController } from '@/src/modules/staff/create/create-staff-profile.controller';
-import { getStaffProfilesController } from '@/src/modules/staff/list/get-staff-profiles.controller';
-import { updateStaffProfileController } from '@/src/modules/staff/update/update-staff-profile.controller';
-import { getTipsController } from '@/src/modules/tips/list/get-tips.controller';
-import { markTipsPaidController } from '@/src/modules/tips/mark-paid/mark-tips-paid.controller';
-import { generateBranchQRController } from '@/src/modules/qr/generate-branch-qr/generate-branch-qr.controller';
-import { generateStaffQRController } from '@/src/modules/qr/generate-staff-qr/generate-staff-qr.controller';
-import { processTipPaymentController } from '@/src/modules/tips/process-payment/process-tip-payment.controller';
-import { createPayoutBatchController } from '@/src/modules/payouts/create/create-payout-batch.controller';
-import { getPayoutBatchesController } from '@/src/modules/payouts/list/get-payout-batches.controller';
-import { getPayoutBatchDetailsController } from '@/src/modules/payouts/get/get-payout-batch-details.controller';
-import { completePayoutBatchController } from '@/src/modules/payouts/complete/complete-payout-batch.controller';
-import { getStaffTipsController } from '@/src/modules/tips/get-staff-tips/get-staff-tips.controller';
-import { getMyStaffProfileController } from '@/src/modules/staff/get-my-staff-profile/get-my-staff-profile.controller';
-import { updateCompanyController } from '@/src/modules/company/update/update-company.controller';
-import { updatePasswordController } from '@/src/modules/auth/update-password/update-password.controller';
+  AuthenticationError,
+} from '@/src/shared/errors/auth';
+
+// ============================================
+// HELPER: Get Session
+// ============================================
+
+async function getSessionId() {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+
+  if (!sessionId) {
+    throw new UnauthenticatedError('Must be logged in');
+  }
+
+  return sessionId;
+}
+
+// ============================================
+// SCHEMAS
+// ============================================
+
+const createBranchSchema = z.object({
+  companyId: z.string(),
+  name: z.string().min(1).max(100),
+  location: z.string().max(255).optional(),
+  timezone: z.string().default('UTC'),
+});
+
+const updateBranchSchema = z.object({
+  branchId: z.string(),
+  companyId: z.string(),
+  name: z.string().min(1).max(100).optional(),
+  location: z.string().max(255).nullable().optional(),
+  timezone: z.string().optional(),
+  active: z.boolean().optional(),
+});
+
+const createStaffSchema = z.object({
+  companyId: z.string(),
+  branchId: z.string(),
+  displayName: z.string().min(1).max(100),
+  email: z.string().email(),
+  password: z.string().min(8).max(255),
+  position: z.string().max(100).optional(),
+  avatarUrl: z.string().url().optional(),
+});
+
+const updateStaffSchema = z.object({
+  staffProfileId: z.string(),
+  companyId: z.string(),
+  displayName: z.string().min(1).max(100).optional(),
+  position: z.string().max(100).optional(),
+  avatarUrl: z.string().url().nullable().optional(),
+  active: z.boolean().optional(),
+  branchId: z.string().optional(),
+});
+
+const updateCompanySchema = z.object({
+  companyId: z.string(),
+  name: z.string().min(1).max(100).optional(),
+  legalName: z.string().max(200).optional(),
+  country: z.string().length(2).optional(),
+  currency: z.string().length(3).optional(),
+});
+
+const updateAccountSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email(),
+});
+
+const updatePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(8).max(255),
+    newPassword: z.string().min(8).max(255),
+    confirmPassword: z.string().min(8).max(255),
+  })
+  .superRefine(({ newPassword, confirmPassword }, ctx) => {
+    if (newPassword !== confirmPassword) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'New passwords do not match',
+        path: ['newPassword'],
+      });
+    }
+  });
+
+const processTipPaymentSchema = z.object({
+  companyId: z.string(),
+  branchId: z.string(),
+  staffProfileId: z.string(),
+  amount: z.number().int().positive().min(500),
+  currency: z.string().length(3),
+  customerNote: z.string().max(500).optional(),
+  customerRating: z.number().int().min(1).max(5).optional(),
+});
+
+const createPayoutBatchSchema = z.object({
+  companyId: z.string(),
+  branchId: z.string().optional(),
+  payoutDate: z.string().transform((str) => new Date(str)),
+  tipIds: z.array(z.string()).min(1),
+});
 
 // ============================================
 // COMPANY ACTIONS
@@ -39,14 +142,17 @@ import { updatePasswordController } from '@/src/modules/auth/update-password/upd
 
 export async function getCompany(companyId: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
+    const companiesRepository = getCompaniesRepository();
+    const company = await companiesRepository.getCompany(companyId);
+
+    if (!company) {
+      throw new NotFoundError('Company not found');
     }
 
-    return await getCompanyController({ companyId, sessionId });
+    return company;
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       redirect('/sign-in');
@@ -58,13 +164,7 @@ export async function getCompany(companyId: string) {
 
 export async function getUserCompaniesList() {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-
-    if (!sessionId) {
-      redirect('/sign-in');
-    }
-
+    const sessionId = await getSessionId();
     return await getUserCompanies(sessionId);
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
@@ -79,40 +179,71 @@ export async function getUserCompaniesList() {
 // BRANCH ACTIONS
 // ============================================
 
-export async function createBranch(formData: FormData) {
+export async function createBranch(input: {
+  companyId: string;
+  name: string;
+  location?: string;
+  timezone?: string;
+}) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    const data = createBranchSchema.parse(input);
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    await validateCompanyAccess(sessionId, data.companyId, 'MANAGER');
+
+    const companiesRepository = getCompaniesRepository();
+    const company = await companiesRepository.getCompany(data.companyId);
+    if (!company) {
+      throw new NotFoundError('Company not found');
     }
 
-    const data = Object.fromEntries(formData.entries());
-    const companyId = data.companyId?.toString();
+    const slug = data.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
 
-    if (!companyId) {
-      return { error: 'Company ID is required' };
+    const branchesRepository = getBranchesRepository();
+    const existingBranch = await branchesRepository.getBranchBySlugAndCompany(
+      slug,
+      data.companyId
+    );
+
+    if (existingBranch) {
+      return { error: 'A branch with this name already exists' };
     }
 
-    await createBranchController({
-      companyId,
-      name: data.name?.toString() || '',
-      location: data.location?.toString(),
-      timezone: data.timezone?.toString(),
-      sessionId,
+    const branchId = generateIdFromEntropySize(10);
+    await branchesRepository.createBranch({
+      id: branchId,
+      companyId: data.companyId,
+      name: data.name,
+      location: data.location || null,
+      slug: `${slug}-${branchId.slice(0, 6)}`,
+      timezone: data.timezone,
+      active: true,
     });
 
     revalidatePath('/app/branches');
     return { success: true };
   } catch (err) {
+    console.error('Create branch error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       return { error: 'You do not have permission to create branches' };
     }
-    console.error('Create branch error:', err);
+
+    if (err instanceof NotFoundError) {
+      return { error: err.message };
+    }
+
     return {
       error: 'An error happened while creating the branch. Please try again later.',
     };
@@ -121,14 +252,16 @@ export async function createBranch(formData: FormData) {
 
 export async function getBranches(companyId: string, activeOnly?: boolean) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
+    const branchesRepository = getBranchesRepository();
+
+    if (activeOnly) {
+      return branchesRepository.getActiveBranchesByCompany(companyId);
     }
 
-    return await getBranchesController({ companyId, sessionId, activeOnly });
+    return branchesRepository.getBranchesByCompany(companyId);
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       redirect('/sign-in');
@@ -138,46 +271,74 @@ export async function getBranches(companyId: string, activeOnly?: boolean) {
   }
 }
 
-export async function updateBranch(formData: FormData) {
-  try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+export async function getBranch(companyId: string, branchId: string) {
+  const sessionId = await getSessionId();
+  await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+  const branchesRepository = getBranchesRepository();
+  const branch = await branchesRepository.getBranch(branchId);
+
+  if (!branch) {
+    throw new NotFoundError('Branch not found');
+  }
+
+  if (branch.companyId !== companyId) {
+    throw new NotFoundError('Branch not found');
+  }
+
+  return branch;
+}
+
+export async function updateBranch(input: {
+  branchId: string;
+  companyId: string;
+  name?: string;
+  location?: string | null;
+  timezone?: string;
+  active?: boolean;
+}) {
+  try {
+    const sessionId = await getSessionId();
+    const data = updateBranchSchema.parse(input);
+
+    await validateCompanyAccess(sessionId, data.companyId, 'MANAGER');
+
+    const branchesRepository = getBranchesRepository();
+    const existingBranch = await branchesRepository.getBranch(data.branchId);
+
+    if (!existingBranch) {
+      return { error: 'Branch not found' };
     }
 
-    const data = Object.fromEntries(formData.entries());
-    const branchId = data.branchId?.toString();
-    const companyId = data.companyId?.toString();
-
-    if (!branchId || !companyId) {
-      return { error: 'Branch ID and Company ID are required' };
+    if (existingBranch.companyId !== data.companyId) {
+      return { error: 'Branch does not belong to this company' };
     }
 
     const updates: any = {};
-    if (data.name) updates.name = data.name.toString();
-    if (data.location !== undefined) updates.location = data.location.toString() || null;
-    if (data.timezone) updates.timezone = data.timezone.toString();
-    if (data.active !== undefined) updates.active = data.active === 'true';
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.location !== undefined) updates.location = data.location;
+    if (data.timezone !== undefined) updates.timezone = data.timezone;
+    if (data.active !== undefined) updates.active = data.active;
 
-    await updateBranchController({
-      branchId,
-      companyId,
-      updates,
-      sessionId,
-    });
+    await branchesRepository.updateBranch(data.branchId, updates);
 
     revalidatePath('/app/branches');
     return { success: true };
   } catch (err) {
+    console.error('Update branch error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       return { error: 'You do not have permission to update branches' };
     }
-    console.error('Update branch error:', err);
+
     return {
       error: 'An error happened while updating the branch. Please try again later.',
     };
@@ -188,56 +349,174 @@ export async function updateBranch(formData: FormData) {
 // STAFF ACTIONS
 // ============================================
 
-export async function createStaff(formData: FormData) {
+export async function createStaff(input: {
+  companyId: string;
+  branchId: string;
+  displayName: string;
+  email: string;
+  password: string;
+  position?: string;
+  avatarUrl?: string;
+}) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    const data = createStaffSchema.parse(input);
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    await validateCompanyAccess(sessionId, data.companyId, 'MANAGER');
+
+    const usersRepository = getUsersRepository();
+    const companyMembersRepository = getCompanyMembersRepository();
+    const transactionService = getTransactionManagerService();
+
+    const existingUser = await usersRepository.getUserByEmail(data.email);
+    if (existingUser) {
+      const existingCompanyMembers = await companyMembersRepository.getCompanyMembersByUser(
+        existingUser.id
+      );
+      if (existingCompanyMembers.length > 0) {
+        throw new UnauthorizedError(
+          'User is already a company member and cannot have a staff profile'
+        );
+      }
+
+      const staffProfilesRepository = getStaffProfilesRepository();
+      const existingStaffProfiles = await staffProfilesRepository.getStaffProfilesByUser(
+        existingUser.id
+      );
+      if (existingStaffProfiles.length > 0) {
+        throw new AuthenticationError('User already has a staff profile');
+      }
+
+      const userId = existingUser.id;
+      return await transactionService.startTransaction(async (tx) => {
+        const companiesRepository = getCompaniesRepository();
+        const company = await companiesRepository.getCompany(data.companyId, tx);
+        if (!company) {
+          throw new NotFoundError('Company not found');
+        }
+
+        const branchesRepository = getBranchesRepository();
+        const branch = await branchesRepository.getBranch(data.branchId, tx);
+        if (!branch) {
+          throw new NotFoundError('Branch not found');
+        }
+        if (branch.companyId !== data.companyId) {
+          throw new NotFoundError('Branch does not belong to this company');
+        }
+
+        const publicId = generateIdFromEntropySize(16);
+        let existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(publicId, tx);
+        let attempts = 0;
+        while (existingStaff && attempts < 5) {
+          const newPublicId = generateIdFromEntropySize(16);
+          existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(newPublicId, tx);
+          attempts++;
+        }
+
+        const staffId = generateIdFromEntropySize(10);
+        await staffProfilesRepository.createStaffProfile(
+          {
+            id: staffId,
+            companyId: data.companyId,
+            branchId: data.branchId,
+            userId: userId,
+            displayName: data.displayName,
+            position: data.position || null,
+            avatarUrl: data.avatarUrl || null,
+            publicId: existingStaff ? generateIdFromEntropySize(16) : publicId,
+            active: true,
+          },
+          tx
+        );
+
+        revalidatePath('/app/staff');
+        return { success: true };
+      });
     }
 
-    const data = Object.fromEntries(formData.entries());
-    const companyId = data.companyId?.toString();
-    const branchId = data.branchId?.toString();
+    const authenticationService = getAuthenticationService();
+    const userId = authenticationService.generateUserId();
 
-    if (!companyId || !branchId) {
-      return { error: 'Company ID and Branch ID are required' };
-    }
+    return await transactionService.startTransaction(async (tx) => {
+      const newUser = await usersRepository.createUser(
+        {
+          id: userId,
+          name: data.displayName,
+          email: data.email,
+          password: data.password,
+          role: 'STAFF',
+        },
+        tx
+      );
 
-    const email = data.email?.toString();
-    const password = data.password?.toString();
+      const companiesRepository = getCompaniesRepository();
+      const company = await companiesRepository.getCompany(data.companyId, tx);
+      if (!company) {
+        throw new NotFoundError('Company not found');
+      }
 
-    if (!email || !password) {
-      return { error: 'Email and password are required' };
-    }
+      const branchesRepository = getBranchesRepository();
+      const branch = await branchesRepository.getBranch(data.branchId, tx);
+      if (!branch) {
+        throw new NotFoundError('Branch not found');
+      }
+      if (branch.companyId !== data.companyId) {
+        throw new NotFoundError('Branch does not belong to this company');
+      }
 
-    await createStaffProfileController({
-      companyId,
-      branchId,
-      displayName: data.displayName?.toString() || '',
-      email,
-      password,
-      position: data.position?.toString() || undefined,
-      avatarUrl: data.avatarUrl?.toString() || undefined,
-      sessionId,
+      const publicId = generateIdFromEntropySize(16);
+      const staffProfilesRepository = getStaffProfilesRepository();
+      let existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(publicId, tx);
+      let attempts = 0;
+      while (existingStaff && attempts < 5) {
+        const newPublicId = generateIdFromEntropySize(16);
+        existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(newPublicId, tx);
+        attempts++;
+      }
+
+      const staffId = generateIdFromEntropySize(10);
+      await staffProfilesRepository.createStaffProfile(
+        {
+          id: staffId,
+          companyId: data.companyId,
+          branchId: data.branchId,
+          userId: newUser.id,
+          displayName: data.displayName,
+          position: data.position || null,
+          avatarUrl: data.avatarUrl || null,
+          publicId: existingStaff ? generateIdFromEntropySize(16) : publicId,
+          active: true,
+        },
+        tx
+      );
+
+      revalidatePath('/app/staff');
+      return { success: true };
     });
-
-    revalidatePath('/app/staff');
-    return { success: true };
   } catch (err) {
+    console.error('Create staff error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError) {
       return { error: 'You must be logged in to create staff' };
     }
+
     if (err instanceof UnauthorizedError) {
-      // Include the actual error message to help debug
       console.error('Unauthorized error creating staff:', err.message);
       return { error: err.message || 'You do not have permission to create staff' };
     }
-    console.error('Create staff error:', err);
+
+    if (err instanceof AuthenticationError) {
+      return { error: err.message };
+    }
+
     return {
       error: 'An error happened while creating the staff profile. Please try again later.',
     };
@@ -246,14 +525,19 @@ export async function createStaff(formData: FormData) {
 
 export async function getStaff(companyId: string, branchId?: string, activeOnly?: boolean) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
+    const staffProfilesRepository = getStaffProfilesRepository();
+
+    if (branchId) {
+      if (activeOnly) {
+        return staffProfilesRepository.getActiveStaffProfilesByBranch(branchId);
+      }
+      return staffProfilesRepository.getStaffProfilesByBranch(branchId);
     }
 
-    return await getStaffProfilesController({ companyId, branchId, activeOnly, sessionId });
+    return staffProfilesRepository.getStaffProfilesByCompany(companyId);
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       redirect('/sign-in');
@@ -263,47 +547,66 @@ export async function getStaff(companyId: string, branchId?: string, activeOnly?
   }
 }
 
-export async function updateStaff(formData: FormData) {
+export async function updateStaff(input: {
+  staffProfileId: string;
+  companyId: string;
+  displayName?: string;
+  position?: string;
+  avatarUrl?: string | null;
+  active?: boolean;
+  branchId?: string;
+}) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    const data = updateStaffSchema.parse(input);
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    await validateCompanyAccess(sessionId, data.companyId, 'MANAGER');
+
+    const staffProfilesRepository = getStaffProfilesRepository();
+    const existingStaff = await staffProfilesRepository.getStaffProfile(data.staffProfileId);
+
+    if (!existingStaff) {
+      return { error: 'Staff profile not found' };
     }
 
-    const data = Object.fromEntries(formData.entries());
-    const staffProfileId = data.staffProfileId?.toString();
-    const companyId = data.companyId?.toString();
+    if (existingStaff.companyId !== data.companyId) {
+      return { error: 'Staff profile does not belong to this company' };
+    }
 
-    if (!staffProfileId || !companyId) {
-      return { error: 'Staff Profile ID and Company ID are required' };
+    if (data.branchId && data.branchId !== existingStaff.branchId) {
+      const branchesRepository = getBranchesRepository();
+      const branch = await branchesRepository.getBranch(data.branchId);
+      if (!branch || branch.companyId !== data.companyId) {
+        return { error: 'Branch does not belong to this company' };
+      }
     }
 
     const updates: any = {};
-    if (data.displayName) updates.displayName = data.displayName.toString();
-    if (data.position) updates.position = data.position.toString();
-    if (data.avatarUrl) updates.avatarUrl = data.avatarUrl.toString();
-    if (data.active !== undefined) updates.active = data.active === 'true';
-    if (data.branchId) updates.branchId = data.branchId.toString();
+    if (data.displayName !== undefined) updates.displayName = data.displayName;
+    if (data.position !== undefined) updates.position = data.position;
+    if (data.avatarUrl !== undefined) updates.avatarUrl = data.avatarUrl;
+    if (data.active !== undefined) updates.active = data.active;
+    if (data.branchId !== undefined) updates.branchId = data.branchId;
 
-    await updateStaffProfileController({
-      staffProfileId,
-      companyId,
-      updates,
-      sessionId,
-    });
+    await staffProfilesRepository.updateStaffProfile(data.staffProfileId, updates);
 
     revalidatePath('/app/staff');
     return { success: true };
   } catch (err) {
+    console.error('Update staff error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       return { error: 'You do not have permission to update staff' };
     }
-    console.error('Update staff error:', err);
+
     return {
       error: 'An error happened while updating the staff profile. Please try again later.',
     };
@@ -326,18 +629,11 @@ export async function getTips(
   }
 ) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
-    }
-
-    return await getTipsController({
-      companyId,
-      ...filters,
-      sessionId,
-    });
+    const tipsRepository = getTipsRepository();
+    return tipsRepository.getTipsByCompany(companyId, filters || {});
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       redirect('/sign-in');
@@ -349,17 +645,29 @@ export async function getTips(
 
 export async function markTipsAsPaid(companyId: string, tipIds: string[]) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId, 'ADMIN');
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    if (tipIds.length === 0) {
+      return { success: true };
     }
 
-    await markTipsPaidController({
-      companyId,
-      tipIds,
-      sessionId,
+    const tipsRepository = getTipsRepository();
+    const transactionService = getTransactionManagerService();
+
+    const tips = await tipsRepository.getTipsByCompany(companyId, {
+      distributionStatus: 'PENDING',
+      paymentStatus: 'SUCCEEDED',
+    });
+
+    const validTipIds = tips.filter((tip) => tipIds.includes(tip.id)).map((tip) => tip.id);
+
+    if (validTipIds.length === 0) {
+      return { error: 'No valid tips found to mark as paid' };
+    }
+
+    await transactionService.startTransaction(async (tx) => {
+      return tipsRepository.markTipsAsPaid(validTipIds, tx);
     });
 
     revalidatePath('/app/tips');
@@ -384,21 +692,29 @@ export async function markTipsAsPaid(companyId: string, tipIds: string[]) {
 
 export async function generateBranchQR(companyId: string, branchId: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    const companiesRepository = getCompaniesRepository();
+    const company = await companiesRepository.getCompany(companyId);
+    if (!company) {
+      throw new NotFoundError('Company not found');
+    }
+
+    const branchesRepository = getBranchesRepository();
+    const branch = await branchesRepository.getBranch(branchId);
+    if (!branch || branch.companyId !== companyId) {
+      throw new NotFoundError('Branch not found');
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const qrCodeService = getQRCodeService();
+    const url = qrCodeService.generateBranchTippingUrl(company.slug, branch.slug, baseUrl);
 
-    return await generateBranchQRController({
-      companyId,
-      branchId,
-      sessionId,
-      baseUrl,
-    });
+    const dataUrl = await qrCodeService.generateDataURL(url, { size: 400 });
+    const svg = await qrCodeService.generateSVG(url, { size: 400 });
+
+    return { url, dataUrl, svg };
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       return { error: 'You do not have permission to generate QR codes' };
@@ -412,21 +728,33 @@ export async function generateBranchQR(companyId: string, branchId: string) {
 
 export async function generateStaffQR(companyId: string, staffProfileId: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    const companiesRepository = getCompaniesRepository();
+    const company = await companiesRepository.getCompany(companyId);
+    if (!company) {
+      throw new NotFoundError('Company not found');
+    }
+
+    const staffProfilesRepository = getStaffProfilesRepository();
+    const staff = await staffProfilesRepository.getStaffProfile(staffProfileId);
+    if (!staff || staff.companyId !== companyId) {
+      throw new NotFoundError('Staff profile not found');
+    }
+
+    if (!staff.active) {
+      throw new NotFoundError('Staff profile is not active');
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const qrCodeService = getQRCodeService();
+    const url = qrCodeService.generateStaffTippingUrl(staff.publicId, baseUrl);
 
-    return await generateStaffQRController({
-      companyId,
-      staffProfileId,
-      sessionId,
-      baseUrl,
-    });
+    const dataUrl = await qrCodeService.generateDataURL(url, { size: 400 });
+    const svg = await qrCodeService.generateSVG(url, { size: 400 });
+
+    return { url, dataUrl, svg };
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       return { error: 'You do not have permission to generate QR codes' };
@@ -442,34 +770,88 @@ export async function generateStaffQR(companyId: string, staffProfileId: string)
 // TIP PAYMENT ACTIONS (Public)
 // ============================================
 
-export async function processTipPayment(formData: FormData) {
+// app/actions.ts
+export async function processTipPayment(input: {
+  companyId: string;
+  branchId: string;
+  staffProfileId: string;
+  amount: number;
+  currency: string;
+  customerNote?: string;
+  customerRating?: number;
+}) {
   try {
-    const data = Object.fromEntries(formData.entries());
-    const companyId = data.companyId?.toString();
-    const branchId = data.branchId?.toString();
-    const staffProfileId = data.staffProfileId?.toString();
-    const amount = data.amount?.toString();
-    const currency = data.currency?.toString();
-    const customerNote = data.customerNote?.toString();
-    const customerRating = data.customerRating?.toString();
+    // Validate input
+    const data = processTipPaymentSchema.parse(input);
 
-    if (!companyId || !branchId || !staffProfileId || !amount || !currency) {
-      return { error: 'Missing required fields' };
+    // Verify company exists
+    const companiesRepository = getCompaniesRepository();
+    const company = await companiesRepository.getCompany(data.companyId);
+    if (!company) {
+      return { error: 'Company not found' };
     }
 
-    const amountInCents = parseInt(amount, 10);
-    if (isNaN(amountInCents) || amountInCents < 500) {
-      return { error: 'Invalid amount. Minimum is 5.00' };
+    // Verify currency matches
+    if (data.currency !== company.currency) {
+      return { error: 'Currency mismatch' };
     }
 
-    const result = await processTipPaymentController({
-      companyId,
-      branchId,
-      staffProfileId,
-      amount: amountInCents,
-      currency,
-      customerNote: customerNote || undefined,
-      customerRating: customerRating ? parseInt(customerRating, 10) : undefined,
+    // Verify staff exists and belongs to company
+    const staffProfilesRepository = getStaffProfilesRepository();
+    const staff = await staffProfilesRepository.getStaffProfile(data.staffProfileId);
+    if (!staff || staff.companyId !== data.companyId) {
+      return { error: 'Staff profile not found' };
+    }
+
+    // Verify branch exists and is active
+    const branchesRepository = getBranchesRepository();
+    const branch = await branchesRepository.getBranch(data.branchId);
+    if (!branch || branch.companyId !== data.companyId || !branch.active) {
+      return { error: 'Branch not found or inactive' };
+    }
+
+    const paymentService = getPaymentService();
+    const transactionService = getTransactionManagerService();
+    const tipsRepository = getTipsRepository();
+
+    // Process payment and create tip in a transaction
+    const result = await transactionService.startTransaction(async (tx) => {
+      // Process payment first
+      const paymentResponse = await paymentService.processPayment({
+        amount: data.amount,
+        currency: data.currency,
+        description: `Tip for ${staff.displayName}`,
+        metadata: {
+          companyId: data.companyId,
+          branchId: data.branchId,
+          staffProfileId: data.staffProfileId,
+        },
+      });
+
+      if (!paymentResponse.success || paymentResponse.status !== 'SUCCEEDED') {
+        throw new Error(paymentResponse.message || 'Payment failed');
+      }
+
+      // Create tip record
+      const tipId = generateIdFromEntropySize(10);
+      const tip = await tipsRepository.createTip(
+        {
+          id: tipId,
+          companyId: data.companyId,
+          branchId: data.branchId,
+          staffProfileId: data.staffProfileId,
+          amount: data.amount,
+          currency: data.currency,
+          paymentProvider: 'LOCAL_GATEWAY',
+          paymentProviderTransactionId: paymentResponse.transactionId,
+          paymentStatus: 'SUCCEEDED',
+          customerNote: data.customerNote || null,
+          customerRating: data.customerRating || null,
+        },
+        tx // Pass transaction to repository
+      );
+
+      return { tip, paymentResponse };
     });
 
     return {
@@ -478,62 +860,149 @@ export async function processTipPayment(formData: FormData) {
       transactionId: result.paymentResponse.transactionId,
     };
   } catch (err) {
+    console.error('Process tip payment error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.errors[0]?.message || 'Invalid input' };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
-    console.error('Process tip payment error:', err);
+
+    if (err instanceof NotFoundError) {
+      return { error: err.message };
+    }
+
     return {
       error: 'An error happened while processing the payment. Please try again later.',
     };
   }
 }
-
 // ============================================
 // PAYOUT BATCH ACTIONS
 // ============================================
 
-export async function createPayoutBatch(formData: FormData) {
+export async function createPayoutBatch(input: {
+  companyId: string;
+  branchId?: string;
+  payoutDate: string;
+  tipIds: string[];
+}) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    const parsed = createPayoutBatchSchema.parse({
+      ...input,
+      payoutDate: input.payoutDate,
+    });
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    await validateCompanyAccess(sessionId, parsed.companyId, 'ADMIN');
+
+    const companiesRepository = getCompaniesRepository();
+    const company = await companiesRepository.getCompany(parsed.companyId);
+    if (!company) {
+      throw new NotFoundError('Company not found');
     }
 
-    const data = Object.fromEntries(formData.entries());
-    const companyId = data.companyId?.toString();
-    const branchId = data.branchId?.toString();
-    const tipIds = data.tipIds?.toString().split(',').filter(Boolean) || [];
-    const payoutDate = data.payoutDate?.toString();
-
-    if (!companyId || !payoutDate || tipIds.length === 0) {
-      return { error: 'Missing required fields' };
-    }
-
-    // Get current user
     const authService = getAuthenticationService();
     const { user } = await authService.validateSession(sessionId);
 
-    const result = await createPayoutBatchController({
-      companyId,
-      branchId: branchId || undefined,
-      processedByUserId: user.id,
-      payoutDate: new Date(payoutDate),
-      tipIds,
-      sessionId,
+    const tipsRepository = getTipsRepository();
+    const transactionService = getTransactionManagerService();
+
+    const pendingTips = await tipsRepository.getPendingTipsByCompany(
+      parsed.companyId,
+      parsed.branchId
+    );
+
+    const validTipIds = pendingTips
+      .filter((tip) => parsed.tipIds.includes(tip.id))
+      .map((tip) => tip.id);
+
+    if (validTipIds.length === 0) {
+      return { error: 'No valid pending tips found' };
+    }
+
+    const staffTotals = new Map<string, { amount: number; tipIds: string[] }>();
+
+    for (const tip of pendingTips) {
+      if (validTipIds.includes(tip.id)) {
+        const existing = staffTotals.get(tip.staffProfileId) || {
+          amount: 0,
+          tipIds: [],
+        };
+        existing.amount += tip.amount;
+        existing.tipIds.push(tip.id);
+        staffTotals.set(tip.staffProfileId, existing);
+      }
+    }
+
+    const result = await transactionService.startTransaction(async (tx) => {
+      const totalAmount = Array.from(staffTotals.values()).reduce(
+        (sum, item) => sum + item.amount,
+        0
+      );
+
+      const payoutBatchesRepository = getPayoutBatchesRepository();
+      const payoutBatchId = generateIdFromEntropySize(10);
+
+      const payoutBatch = await payoutBatchesRepository.createPayoutBatch(
+        {
+          id: payoutBatchId,
+          companyId: parsed.companyId,
+          branchId: parsed.branchId || null,
+          processedByUserId: user.id,
+          payoutDate: parsed.payoutDate,
+          totalAmount,
+          currency: company.currency,
+        },
+        tx
+      );
+
+      const payoutItemsRepository = getPayoutItemsRepository();
+      const payoutItems: any[] = [];
+
+      for (const [staffProfileId, totals] of staffTotals.entries()) {
+        const payoutItemId = generateIdFromEntropySize(10);
+        const payoutItem = await payoutItemsRepository.createPayoutItem(
+          {
+            id: payoutItemId,
+            payoutBatchId: payoutBatch.id,
+            staffProfileId,
+            amount: totals.amount,
+            currency: company.currency,
+          },
+          tx
+        );
+        payoutItems.push(payoutItem);
+      }
+
+      await tipsRepository.markTipsAsPaid(validTipIds, tx);
+
+      return { payoutBatch, payoutItems };
     });
 
     revalidatePath('/app/payouts');
     return { success: true, payoutBatchId: result.payoutBatch.id };
   } catch (err) {
+    console.error('Create payout batch error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       return { error: 'You do not have permission to create payout batches' };
     }
-    console.error('Create payout batch error:', err);
+
+    if (err instanceof NotFoundError) {
+      return { error: err.message };
+    }
+
     return {
       error: 'An error happened while creating the payout batch. Please try again later.',
     };
@@ -542,14 +1011,11 @@ export async function createPayoutBatch(formData: FormData) {
 
 export async function getPayoutBatches(companyId: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
-    }
-
-    return await getPayoutBatchesController({ companyId, sessionId });
+    const payoutBatchesRepository = getPayoutBatchesRepository();
+    return payoutBatchesRepository.getPayoutBatchesByCompany(companyId);
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       redirect('/sign-in');
@@ -561,18 +1027,24 @@ export async function getPayoutBatches(companyId: string) {
 
 export async function getPayoutBatchDetails(companyId: string, payoutBatchId: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
+    const payoutBatchesRepository = getPayoutBatchesRepository();
+    const payoutBatch = await payoutBatchesRepository.getPayoutBatch(payoutBatchId);
+
+    if (!payoutBatch) {
+      throw new NotFoundError('Payout batch not found');
     }
 
-    return await getPayoutBatchDetailsController({
-      payoutBatchId,
-      companyId,
-      sessionId,
-    });
+    if (payoutBatch.companyId !== companyId) {
+      throw new NotFoundError('Payout batch not found');
+    }
+
+    const payoutItemsRepository = getPayoutItemsRepository();
+    const payoutItems = await payoutItemsRepository.getPayoutItemsByBatch(payoutBatchId);
+
+    return { payoutBatch, payoutItems };
   } catch (err) {
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       redirect('/sign-in');
@@ -584,17 +1056,27 @@ export async function getPayoutBatchDetails(companyId: string, payoutBatchId: st
 
 export async function completePayoutBatch(companyId: string, payoutBatchId: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId, 'ADMIN');
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    const payoutBatchesRepository = getPayoutBatchesRepository();
+    const payoutBatch = await payoutBatchesRepository.getPayoutBatch(payoutBatchId);
+
+    if (!payoutBatch) {
+      return { error: 'Payout batch not found' };
     }
 
-    await completePayoutBatchController({
-      payoutBatchId,
-      companyId,
-      sessionId,
+    if (payoutBatch.companyId !== companyId) {
+      return { error: 'Payout batch not found' };
+    }
+
+    if (payoutBatch.status !== 'PENDING') {
+      return { error: 'Payout batch is already completed' };
+    }
+
+    const transactionService = getTransactionManagerService();
+    await transactionService.startTransaction(async (tx) => {
+      return payoutBatchesRepository.markPayoutBatchAsCompleted(payoutBatchId, tx);
     });
 
     revalidatePath('/app/payouts');
@@ -619,14 +1101,15 @@ export async function completePayoutBatch(companyId: string, payoutBatchId: stri
 
 export async function getMyStaffProfile() {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    const authService = getAuthenticationService();
+    const { user } = await authService.validateSession(sessionId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
-    }
+    const staffProfilesRepository = getStaffProfilesRepository();
+    const staffProfiles = await staffProfilesRepository.getStaffProfilesByUser(user.id);
 
-    return await getMyStaffProfileController({ sessionId });
+    const activeProfile = staffProfiles.find((sp) => sp.active);
+    return activeProfile || staffProfiles[0] || null;
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
       redirect('/sign-in');
@@ -638,23 +1121,23 @@ export async function getMyStaffProfile() {
 
 export async function getMyStaffTips(startDate?: Date, endDate?: Date) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    const authService = getAuthenticationService();
+    const { user } = await authService.validateSession(sessionId);
 
-    if (!sessionId) {
-      redirect('/sign-in');
-    }
+    const staffProfilesRepository = getStaffProfilesRepository();
+    const staffProfiles = await staffProfilesRepository.getStaffProfilesByUser(user.id);
 
-    // Get staff profile first
-    const staffProfile = await getMyStaffProfileController({ sessionId });
+    const activeProfile = staffProfiles.find((sp) => sp.active) || staffProfiles[0];
 
-    if (!staffProfile) {
+    if (!activeProfile) {
       return [];
     }
 
-    return await getStaffTipsController({
-      staffProfileId: staffProfile.id,
-      sessionId,
+    const tipsRepository = getTipsRepository();
+    return tipsRepository.getTipsByCompany(activeProfile.companyId, {
+      staffProfileId: activeProfile.id,
+      paymentStatus: 'SUCCEEDED',
       startDate,
       endDate,
     });
@@ -671,121 +1154,151 @@ export async function getMyStaffTips(startDate?: Date, endDate?: Date) {
 // SETTINGS ACTIONS
 // ============================================
 
-export async function updateCompanySettings(formData: FormData) {
+export async function updateCompanySettings(input: {
+  companyId: string;
+  name?: string;
+  legalName?: string;
+  country?: string;
+  currency?: string;
+}) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    const sessionId = await getSessionId();
+    const data = updateCompanySchema.parse(input);
 
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
+    await validateCompanyAccess(sessionId, data.companyId, 'ADMIN');
+
+    const companiesRepository = getCompaniesRepository();
+    const company = await companiesRepository.getCompany(data.companyId);
+
+    if (!company) {
+      throw new NotFoundError('Company not found');
     }
 
-    const data = Object.fromEntries(formData.entries());
-    const companyId = data.companyId?.toString();
+    const updates: any = {};
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.legalName !== undefined) updates.legalName = data.legalName;
+    if (data.country !== undefined) updates.country = data.country;
+    if (data.currency !== undefined) updates.currency = data.currency;
 
-    if (!companyId) {
-      return { error: 'Company ID is required' };
-    }
-
-    await updateCompanyController({
-      companyId,
-      updates: {
-        name: data.name?.toString(),
-        legalName: data.legalName?.toString() || undefined,
-        country: data.country?.toString(),
-        currency: data.currency?.toString(),
-      },
-      sessionId,
-    });
+    await companiesRepository.updateCompany(data.companyId, updates);
 
     revalidatePath('/app/settings');
     return { success: true };
   } catch (err) {
+    console.error('Update company settings error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
       return { error: 'You do not have permission to update company settings' };
     }
-    console.error('Update company settings error:', err);
+
+    if (err instanceof NotFoundError) {
+      return { error: err.message };
+    }
+
     return {
       error: 'An error happened while updating company settings. Please try again later.',
     };
   }
 }
 
-export async function updateAccountSettings(formData: FormData) {
+export async function updateAccountSettings(input: { name: string; email: string }) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
-    }
+    const sessionId = await getSessionId();
+    const data = updateAccountSchema.parse(input);
 
     const authService = getAuthenticationService();
     const { user } = await authService.validateSession(sessionId);
 
-    const data = Object.fromEntries(formData.entries());
-
-    // Update user info
-    const { getUsersRepository } = await import('@/src/service-locator');
     const usersRepository = getUsersRepository();
     await usersRepository.updateUser(user.id, {
-      name: data.name?.toString(),
-      email: data.email?.toString(),
+      name: data.name,
+      email: data.email,
     });
 
     revalidatePath('/app/settings');
     return { success: true };
   } catch (err) {
+    console.error('Update account settings error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError) {
       return { error: 'Must be logged in' };
     }
-    console.error('Update account settings error:', err);
+
     return {
       error: 'An error happened while updating account settings. Please try again later.',
     };
   }
 }
 
-export async function updatePassword(formData: FormData) {
+export async function updatePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-
-    if (!sessionId) {
-      return { error: 'Must be logged in' };
-    }
+    const sessionId = await getSessionId();
+    const data = updatePasswordSchema.parse(input);
 
     const authService = getAuthenticationService();
     const { user } = await authService.validateSession(sessionId);
 
-    const data = Object.fromEntries(formData.entries());
+    const usersRepository = getUsersRepository();
+    const userRecord = await usersRepository.getUser(user.id);
+    if (!userRecord) {
+      throw new NotFoundError('User not found');
+    }
 
-    await updatePasswordController({
-      userId: user.id,
-      currentPassword: data.currentPassword?.toString() || '',
-      newPassword: data.newPassword?.toString() || '',
-      confirmPassword: data.confirmPassword?.toString() || '',
-    });
+    const validPassword = await authService.validatePasswords(
+      data.currentPassword,
+      userRecord.password_hash
+    );
+
+    if (!validPassword) {
+      return { error: 'Current password is incorrect' };
+    }
+
+    const newPasswordHash = await hash(data.newPassword, PASSWORD_SALT_ROUNDS);
+    await usersRepository.updatePassword(user.id, newPasswordHash);
 
     revalidatePath('/app/settings');
     return { success: true };
   } catch (err) {
+    console.error('Update password error:', err);
+
+    if (err instanceof z.ZodError) {
+      return { error: err.issues[0].message };
+    }
+
     if (err instanceof InputParseError) {
       return { error: err.message };
     }
+
     if (err instanceof UnauthenticatedError) {
       return { error: 'Must be logged in' };
     }
-    console.error('Update password error:', err);
+
+    if (err instanceof NotFoundError) {
+      return { error: err.message };
+    }
+
     return {
       error: 'An error happened while updating password. Please try again later.',
     };
   }
 }
-

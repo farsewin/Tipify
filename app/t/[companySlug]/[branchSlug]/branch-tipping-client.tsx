@@ -12,9 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../_components/ui/card';
-import type { Company } from '@/src/modules/company/company.model';
-import type { Branch } from '@/src/modules/branch/branch.model';
-import type { StaffProfile } from '@/src/modules/staff/staff-profile.model';
+import type { Company } from '@/src/models/company.model';
+import type { Branch } from '@/src/models/branch.model';
+import type { StaffProfile } from '@/src/models/staff-profile.model';
 
 interface BranchTippingPageProps {
   company: Company;

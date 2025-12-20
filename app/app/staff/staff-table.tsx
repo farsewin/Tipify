@@ -127,10 +127,15 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
 
     setLoading(true);
     const formData = new FormData(event.currentTarget);
-    formData.append('staffProfileId', editingStaff.id);
-    formData.append('companyId', companyId);
 
-    const result = await updateStaff(formData);
+    const result = await updateStaff({
+      staffProfileId: editingStaff.id,
+      companyId: companyId,
+      displayName: formData.get('displayName') as string,
+      position: formData.get('position') as string || undefined,
+      avatarUrl: formData.get('avatarUrl') as string || null,
+      branchId: formData.get('branchId') as string,
+    });
 
     if (result?.error) {
       toast.error(result.error);
@@ -150,9 +155,16 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
 
     setCreateLoading(true);
     const formData = new FormData(event.currentTarget);
-    formData.append('companyId', companyId);
 
-    const result = await createStaff(formData);
+    const result = await createStaff({
+      companyId: companyId,
+      branchId: formData.get('branchId') as string,
+      displayName: formData.get('displayName') as string,
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+      position: formData.get('position') as string || undefined,
+      avatarUrl: formData.get('avatarUrl') as string || undefined,
+    });
 
     if (result?.error) {
       toast.error(result.error);
@@ -171,12 +183,12 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
     if (toggleLoading === member.id) return;
 
     setToggleLoading(member.id);
-    const formData = new FormData();
-    formData.append('staffProfileId', member.id);
-    formData.append('companyId', companyId);
-    formData.append('active', (!member.active).toString());
 
-    const result = await updateStaff(formData);
+    const result = await updateStaff({
+      staffProfileId: member.id,
+      companyId: companyId,
+      active: !member.active,
+    });
 
     if (result?.error) {
       toast.error(result.error);

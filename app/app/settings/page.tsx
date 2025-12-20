@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { SESSION_COOKIE } from '@/config';
 import { getCompany } from '../actions';
 import { getAuthenticationService } from '@/src/service-locator';
-import { getUserCompanies } from '@/src/modules/shared/helpers/access-control';
-import { UnauthenticatedError } from '@/src/modules/shared/errors/auth';
+import { getUserCompanies } from '@/src/shared/helpers/access-control';
+import { UnauthenticatedError } from '@/src/shared/errors/auth';
 import SettingsPageClient from './settings-page-client';
 
 async function getSettingsData() {
