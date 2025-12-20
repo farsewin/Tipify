@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Star, Loader } from 'lucide-react';
+import { User, Star, Loader, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '../../../_components/ui/button';
 import {
@@ -12,6 +12,14 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../_components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../../_components/ui/dialog';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
 import { processTipPayment } from '../../../app/actions';
@@ -33,6 +41,15 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
   const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<{
+    tipId: string;
+    transactionId?: string;
+    amount: number;
+    currency: string;
+    rating?: number;
+    note?: string;
+  } | null>(null);
 
   const handleQuickAmount = (value: number) => {
     setAmount(value.toString());
@@ -46,6 +63,15 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
 
   const finalAmount = amount || customAmount;
   const amountInCents = finalAmount ? Math.round(parseFloat(finalAmount) * 100) : 0;
+
+  const formatCurrency = (amountInCents: number, currency: string): string => {
+    const amountInUnits = amountInCents / 100;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2,
+    }).format(amountInUnits);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,8 +97,21 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
       if (result?.error) {
         toast.error(result.error);
       } else if (result?.success && result.tipId) {
-        // Redirect to success page
-        router.push(`/t/payment/success?tipId=${result.tipId}&transactionId=${result.transactionId}`);
+        // Show success dialog
+        setPaymentResult({
+          tipId: result.tipId,
+          transactionId: result.transactionId,
+          amount: amountInCents,
+          currency: company.currency,
+          rating: rating || undefined,
+          note: note || undefined,
+        });
+        setShowSuccessDialog(true);
+        // Reset form
+        setAmount('');
+        setCustomAmount('');
+        setRating(null);
+        setNote('');
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');
@@ -201,6 +240,93 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <CheckCircle2 className="h-16 w-16 text-green-600" />
+            </div>
+            <DialogTitle className="text-2xl">Payment Successful!</DialogTitle>
+            <DialogDescription>Thank you for your tip</DialogDescription>
+          </DialogHeader>
+          {paymentResult && (
+            <div className="space-y-4 py-4">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">You tipped</p>
+                <p className="text-3xl font-bold">
+                  {formatCurrency(paymentResult.amount, paymentResult.currency)}
+                </p>
+                <p className="text-lg">
+                  to <span className="font-semibold">{staff.displayName}</span>
+                </p>
+              </div>
+
+              {paymentResult.transactionId && (
+                <div className="border-t pt-4 space-y-2">
+                  <p className="text-sm text-muted-foreground">Transaction ID</p>
+                  <p className="text-sm font-mono break-all">{paymentResult.transactionId}</p>
+                </div>
+              )}
+
+              {paymentResult.rating && (
+                <div className="border-t pt-4">
+                  <p className="text-sm text-muted-foreground mb-2">Your Rating</p>
+                  <div className="flex gap-1 justify-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`h-6 w-6 ${
+                          star <= paymentResult.rating!
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {paymentResult.note && (
+                <div className="border-t pt-4">
+                  <p className="text-sm text-muted-foreground mb-2">Your Note</p>
+                  <p className="text-sm">{paymentResult.note}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                // Reset form for another tip
+                setAmount('');
+                setCustomAmount('');
+                setRating(null);
+                setNote('');
+              }}
+              className="w-full sm:w-auto"
+            >
+              Tip Again
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSuccessDialog(false);
+                // Optionally redirect to success page for full details
+                if (paymentResult) {
+                  router.push(
+                    `/t/payment/success?tipId=${paymentResult.tipId}&transactionId=${paymentResult.transactionId || ''}`
+                  );
+                }
+              }}
+              className="w-full sm:w-auto"
+            >
+              View Details
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
