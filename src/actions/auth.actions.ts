@@ -196,20 +196,22 @@ export async function signUp(input: {
 // ============================================
 // SIGN IN
 // ============================================
-
 export async function signIn(input: { email: string; password: string }) {
   try {
+    console.log('1️⃣ Starting sign in...');
     const data = signInSchema.parse(input);
 
     const usersRepository = getUsersRepository();
     const authenticationService = getAuthenticationService();
 
+    console.log('2️⃣ Looking up user...');
     const existingUser = await usersRepository.getUserByEmail(data.email);
 
     if (!existingUser) {
       return { error: 'Incorrect email or password' };
     }
 
+    console.log('3️⃣ Validating password...');
     const validPassword = await authenticationService.validatePasswords(
       data.password,
       existingUser.password_hash
@@ -219,25 +221,26 @@ export async function signIn(input: { email: string; password: string }) {
       return { error: 'Incorrect email or password' };
     }
 
+    console.log('4️⃣ Creating session...');
     const { cookie } = await authenticationService.createSession(existingUser);
+    
+    console.log('5️⃣ Setting cookie...');
     const cookieStore = await cookies();
     cookieStore.set(cookie.name, cookie.value, cookie.attributes);
 
-    // Get dashboard path based on user type
-    let dashboardPath = '/app/dashboard'; // default
+    console.log('6️⃣ Getting dashboard redirect...');
+    let dashboardPath = '/app/dashboard';
     try {
       dashboardPath = await getDashboardRedirect(cookie.value);
+      console.log('7️⃣ Dashboard path:', dashboardPath);
     } catch (err: unknown) {
-      // If we can't determine user type, log the error and default to company dashboard
-      // The layout will handle redirecting staff members to the correct dashboard
       console.error('Error determining dashboard redirect:', err);
       dashboardPath = '/app/dashboard';
     }
 
-    // redirect() throws a special error that Next.js handles
+    console.log('8️⃣ Redirecting to:', dashboardPath);
     redirect(dashboardPath);
   } catch (err) {
-    // Don't catch Next.js redirect errors - let them propagate
     if (isRedirectError(err)) {
       throw err;
     }

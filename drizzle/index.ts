@@ -1,8 +1,12 @@
-import { createClient, ResultSet } from '@libsql/client';
-import { DrizzleSQLiteAdapter } from '@lucia-auth/adapter-drizzle';
+// ============================================
+// CHANGED: Import from postgres-js instead of libsql
+// ============================================
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import { DrizzlePostgreSQLAdapter } from '@lucia-auth/adapter-drizzle'; // Changed from DrizzleSQLiteAdapter
 import { ExtractTablesWithRelations } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/libsql';
-import { SQLiteTransaction } from 'drizzle-orm/sqlite-core';
+import { PgTransaction } from 'drizzle-orm/pg-core'; // Changed from SQLiteTransaction
+import { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js'; // Changed from ResultSet
 
 import {
   auditLogs,
@@ -18,11 +22,21 @@ import {
   users,
 } from './schema';
 
-// Setup sqlite database connection
-const client = createClient({
-  url: process.env.DATABASE_URL ?? 'file:sqlite.db',
-  authToken: process.env.DATABASE_AUTH_TOKEN,
+// ============================================
+// CHANGED: Setup PostgreSQL connection instead of SQLite
+// ============================================
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL environment variable is not set');
+}
+
+// Create postgres client (replaces createClient from libsql)
+export const client = postgres(connectionString, {
+  prepare: false, // Required for Supabase connection pooling
 });
+
+// Create drizzle instance
 export const db = drizzle(client, {
   schema: {
     users,
@@ -35,14 +49,18 @@ export const db = drizzle(client, {
     payoutBatches,
     payoutItems,
     subscriptionPlans,
-    auditLogs
+    auditLogs,
   },
 });
 
-// Setup lucia adapter
-export const luciaAdapter = new DrizzleSQLiteAdapter(db, sessions, users);
+// ============================================
+// CHANGED: Setup lucia adapter for PostgreSQL
+// ============================================
+export const luciaAdapter = new DrizzlePostgreSQLAdapter(db, sessions, users);
 
-// Export Transaction type to be used in repositories
+// ============================================
+// CHANGED: Export Transaction type for PostgreSQL
+// ============================================
 type Schema = {
   users: typeof users;
   sessions: typeof sessions;
@@ -56,9 +74,9 @@ type Schema = {
   subscriptionPlans: typeof subscriptionPlans;
   auditLogs: typeof auditLogs;
 };
-export type Transaction = SQLiteTransaction<
-  'async',
-  ResultSet,
+
+export type Transaction = PgTransaction<
+  PostgresJsQueryResultHKT,
   Schema,
   ExtractTablesWithRelations<Schema>
 >;

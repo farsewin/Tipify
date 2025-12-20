@@ -1,8 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getAuthenticationService } from '@/src/service-locator';
 import { SESSION_COOKIE } from '@/config';
-
-const authenticationService = getAuthenticationService();
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -31,18 +28,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected paths require authentication
+  // Only check if session cookie exists - don't validate in middleware
+  // Full validation happens in the layout (Server Component with Node.js runtime)
   const sessionId = request.cookies.get(SESSION_COOKIE)?.value;
+  
   if (!sessionId) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
-  try {
-    // Use AuthenticationService directly
-    await authenticationService.validateSession(sessionId);
-  } catch (err) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
-  }
-
+  // Let the request through - the layout will handle:
+  // 1. Full session validation with database
+  // 2. User type checking (staff vs company member)
+  // 3. Proper redirection based on user type
   return NextResponse.next();
 }
 

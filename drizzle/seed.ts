@@ -14,7 +14,7 @@ import {
   payoutItems,
   auditLogs,
 } from './schema';
-import { sql } from 'drizzle-orm/sql';
+import { sql } from 'drizzle-orm';
 
 async function main() {
   console.log('🌱 Starting database seed...');
@@ -23,7 +23,7 @@ async function main() {
   try {
     // Test database connection
     console.log('🔌 Testing database connection...');
-    await db.run(sql`SELECT 1`);
+    await db.execute(sql`SELECT 1`);
     console.log('✅ Database connection successful');
 
     // Generate ID function using lucia (same as the rest of the codebase)
@@ -144,7 +144,12 @@ async function main() {
             name: `${company.name} - Branch ${branchIdx + 1}`,
             location: `${company.country} - Location ${branchIdx + 1}`,
             slug: `branch-${companyIdx + 1}-${branchIdx + 1}`,
-            timezone: company.country === 'US' ? 'America/New_York' : company.country === 'CA' ? 'America/Toronto' : 'Europe/London',
+            timezone:
+              company.country === 'US'
+                ? 'America/New_York'
+                : company.country === 'CA'
+                  ? 'America/Toronto'
+                  : 'Europe/London',
             active: true,
           }))
         )
@@ -153,10 +158,8 @@ async function main() {
     console.log(`   ✅ Created ${createdBranches.length} branches`);
 
     // 6. Create staff users (separate from company users)
-    // Staff users are distinct - they cannot be company members per the schema separation
     console.log('👔 Creating staff users...');
     const staffUsersPasswordHash = await hash('password123', 10);
-    // Create enough staff users for all staff profiles (2 staff per branch * 6 branches = 12 staff)
     const staffUserCount = createdBranches.length * 2;
     const createdStaffUsers = await db
       .insert(users)
@@ -172,7 +175,7 @@ async function main() {
       .returning();
     console.log(`   ✅ Created ${createdStaffUsers.length} staff users`);
 
-    // 7. Create staff profiles (user_id is REQUIRED - NOT NULL constraint)
+    // 7. Create staff profiles
     console.log('👔 Seeding staff profiles...');
     const positions = ['Server', 'Bartender', 'Host', 'Manager', 'Chef', 'Busser'];
     const createdStaff = await db
@@ -186,10 +189,10 @@ async function main() {
               id: generateId(),
               companyId: branch.companyId,
               branchId: branch.id,
-              userId: staffUser.id, // REQUIRED - NOT NULL constraint enforced
+              userId: staffUser.id,
               displayName: `Staff ${staffUserIndex + 1}`,
               position: positions[staffUserIndex % positions.length],
-              publicId: generateIdFromEntropySize(16), // Unique public ID for QR codes
+              publicId: generateIdFromEntropySize(16),
               active: true,
             };
           })
@@ -213,12 +216,13 @@ async function main() {
         companyId: staff.companyId,
         branchId: staff.branchId,
         staffProfileId: staff.id,
-        amount: Math.floor(Math.random() * 5000) + 100, // $1 to $50 in cents
+        amount: Math.floor(Math.random() * 5000) + 100,
         currency: company?.currency || 'USD',
         paymentStatus: paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)],
-        distributionStatus: distributionStatuses[Math.floor(Math.random() * distributionStatuses.length)],
+        distributionStatus:
+          distributionStatuses[Math.floor(Math.random() * distributionStatuses.length)],
         paymentProvider: 'STRIPE' as const,
-        customerRating: Math.floor(Math.random() * 5) + 1, // 1-5
+        customerRating: Math.floor(Math.random() * 5) + 1,
       }));
     });
     await db.insert(tips).values(tipsData);
@@ -234,10 +238,10 @@ async function main() {
           return {
             id: generateId(),
             companyId: company.id,
-            branchId: companyBranch?.id || null, // Nullable for company-wide payouts
-            processedByUserId: createdUsers[0].id, // Use first company user
+            branchId: companyBranch?.id || null,
+            processedByUserId: createdUsers[0].id,
             payoutDate: new Date(),
-            totalAmount: Math.floor(Math.random() * 100000) + 10000, // $100 to $1000 in cents
+            totalAmount: Math.floor(Math.random() * 100000) + 10000,
             currency: company.currency,
             status: 'PENDING' as const,
           };
@@ -262,7 +266,7 @@ async function main() {
         id: generateId(),
         payoutBatchId: batch.id,
         staffProfileId: staff.id,
-        amount: Math.floor(Math.random() * 5000) + 1000, // $10 to $50 in cents
+        amount: Math.floor(Math.random() * 5000) + 1000,
         currency: batch.currency,
       }));
     });
