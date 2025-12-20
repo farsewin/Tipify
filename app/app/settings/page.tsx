@@ -1,70 +1,45 @@
-import Link from 'next/link';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../_components/ui/card';
-import { Building2, User, Users } from 'lucide-react';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { SESSION_COOKIE } from '@/config';
+import { getCompany } from '../actions';
+import { getAuthenticationService } from '@/src/service-locator';
+import { getUserCompanies } from '@/src/modules/shared/helpers/access-control';
+import { UnauthenticatedError } from '@/src/modules/shared/errors/auth';
+import SettingsPageClient from './settings-page-client';
 
-export default function SettingsPage() {
-  return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and company settings</p>
-      </div>
+async function getSettingsData() {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Link href="/app/settings/company">
-          <Card className="hover:bg-accent transition-colors cursor-pointer">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Building2 className="h-8 w-8 text-primary" />
-                <div>
-                  <CardTitle>Company Settings</CardTitle>
-                  <CardDescription>
-                    Update company information, currency, and country
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        </Link>
+  if (!sessionId) {
+    redirect('/sign-in');
+  }
 
-        <Link href="/app/settings/account">
-          <Card className="hover:bg-accent transition-colors cursor-pointer">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <User className="h-8 w-8 text-primary" />
-                <div>
-                  <CardTitle>Account Settings</CardTitle>
-                  <CardDescription>
-                    Update your profile and change your password
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        </Link>
+  try {
+    const authService = getAuthenticationService();
+    const { user } = await authService.validateSession(sessionId);
 
-        <Card className="opacity-50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-muted-foreground" />
-              <div>
-                <CardTitle>Team Settings</CardTitle>
-                <CardDescription>
-                  Manage team members and permissions (Coming soon)
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-      </div>
-    </div>
-  );
+    const companies = await getUserCompanies(sessionId);
+    if (companies.length === 0) {
+      redirect('/sign-in');
+    }
+
+    // Use first company for now
+    const company = await getCompany(companies[0].companyId);
+
+    return { company, user };
+  } catch (err) {
+    if (err instanceof UnauthenticatedError) {
+      redirect('/sign-in');
+    }
+    throw err;
+  }
+}
+
+export default async function SettingsPage() {
+  const { company, user } = await getSettingsData();
+
+  return <SettingsPageClient company={company} user={user} />;
 }
 
 

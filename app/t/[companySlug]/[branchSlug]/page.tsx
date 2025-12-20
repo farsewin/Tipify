@@ -18,14 +18,18 @@ async function getBranchData(companySlug: string, branchSlug: string) {
   }
 
   const branchesRepository = getBranchesRepository();
-  const branch = await branchesRepository.getBranchBySlugAndCompany(branchSlug, company.id);
+  const branch = await branchesRepository.getBranchBySlugAndCompany(
+    branchSlug,
+    company.id
+  );
 
   if (!branch || !branch.active) {
     notFound();
   }
 
   const staffProfilesRepository = getStaffProfilesRepository();
-  const staff = await staffProfilesRepository.getActiveStaffProfilesByBranch(branch.id);
+  const staff =
+    await staffProfilesRepository.getActiveStaffProfilesByBranch(branch.id);
 
   return { company, branch, staff };
 }
@@ -33,11 +37,14 @@ async function getBranchData(companySlug: string, branchSlug: string) {
 export default async function BranchTippingPageServer({
   params,
 }: {
-  params: { companySlug: string; branchSlug: string };
+  params: Promise<{ companySlug: string; branchSlug: string }>;
 }) {
+  // ✅ IMPORTANT: unwrap params
+  const { companySlug, branchSlug } = await params;
+
   const { company, branch, staff } = await getBranchData(
-    params.companySlug,
-    params.branchSlug
+    companySlug,
+    branchSlug
   );
 
   if (!branch) {
@@ -53,4 +60,3 @@ export default async function BranchTippingPageServer({
 
   return <BranchTippingPage company={company} branch={branch} staff={staff} />;
 }
-

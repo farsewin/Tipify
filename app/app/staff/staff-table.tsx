@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Filter, X, User, CheckCircle2, XCircle, Settings, Edit, Power, QrCode, Download } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { Input } from '../../_components/ui/input';
@@ -21,7 +21,8 @@ import {
   DialogTitle,
 } from '../../_components/ui/dialog';
 import { Label } from '../../_components/ui/label';
-import { updateStaff, generateStaffQR } from '../actions';
+import { Separator } from '../../_components/ui/separator';
+import { updateStaff, generateStaffQR, createStaff } from '../actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -42,15 +43,18 @@ interface StaffTableProps {
   staff: StaffMember[];
   branches: Array<{ id: string; name: string }>;
   companyId: string;
+  openCreateDialog?: boolean;
+  onOpenCreateDialogChange?: (open: boolean) => void;
 }
 
-export default function StaffTable({ staff, branches, companyId }: StaffTableProps) {
+export default function StaffTable({ staff, branches, companyId, openCreateDialog = false, onOpenCreateDialogChange }: StaffTableProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [branchFilter, setBranchFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(openCreateDialog);
   const [qrCodeStaff, setQrCodeStaff] = useState<StaffMember | null>(null);
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [qrData, setQrData] = useState<{
@@ -60,7 +64,18 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
   } | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState<string | null>(null);
+
+  // Sync external openCreateDialog prop with internal state
+  useEffect(() => {
+    setIsCreateDialogOpen(openCreateDialog);
+  }, [openCreateDialog]);
+
+  const handleCreateDialogChange = (open: boolean) => {
+    setIsCreateDialogOpen(open);
+    onOpenCreateDialogChange?.(open);
+  };
 
   // Create branch map
   const branchMap = useMemo(() => {
@@ -116,7 +131,7 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
     formData.append('companyId', companyId);
 
     const result = await updateStaff(formData);
-    
+
     if (result?.error) {
       toast.error(result.error);
     } else if (result?.success) {
@@ -125,13 +140,36 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
       setEditingStaff(null);
       router.refresh();
     }
-    
+
     setLoading(false);
+  };
+
+  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (createLoading) return;
+
+    setCreateLoading(true);
+    const formData = new FormData(event.currentTarget);
+    formData.append('companyId', companyId);
+
+    const result = await createStaff(formData);
+
+    if (result?.error) {
+      toast.error(result.error);
+    } else if (result?.success) {
+      toast.success('Staff profile created successfully!');
+      handleCreateDialogChange(false);
+      // Reset form
+      event.currentTarget.reset();
+      router.refresh();
+    }
+
+    setCreateLoading(false);
   };
 
   const handleToggleActive = async (member: StaffMember) => {
     if (toggleLoading === member.id) return;
-    
+
     setToggleLoading(member.id);
     const formData = new FormData();
     formData.append('staffProfileId', member.id);
@@ -139,14 +177,14 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
     formData.append('active', (!member.active).toString());
 
     const result = await updateStaff(formData);
-    
+
     if (result?.error) {
       toast.error(result.error);
     } else if (result?.success) {
       toast.success(`Staff profile ${member.active ? 'deactivated' : 'activated'} successfully`);
       router.refresh();
     }
-    
+
     setToggleLoading(null);
   };
 
@@ -158,7 +196,7 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
 
   const handleGenerateQRCode = async () => {
     if (!qrCodeStaff) return;
-    
+
     setQrLoading(true);
     try {
       const result = await generateStaffQR(companyId, qrCodeStaff.id);
@@ -202,7 +240,7 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
     const active = filteredStaff.filter(s => s.active).length;
     const inactive = filteredStaff.filter(s => !s.active).length;
     const byBranch = new Map<string, number>();
-    
+
     filteredStaff.forEach(member => {
       const branchName = branchMap.get(member.branchId) || 'Unknown';
       byBranch.set(branchName, (byBranch.get(branchName) || 0) + 1);
@@ -378,7 +416,7 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
                             alt={member.displayName}
                             width={40}
                             height={40}
-                            className="rounded-full"
+                            className="rounded-full object-cover"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
@@ -394,11 +432,10 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
                     <td className="px-4 py-3 text-sm">{branchName}</td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          member.active
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${member.active
                             ? 'bg-green-100 text-green-800'
                             : 'bg-gray-100 text-gray-800'
-                        }`}
+                          }`}
                       >
                         {member.active ? 'Active' : 'Inactive'}
                       </span>
@@ -612,6 +649,133 @@ export default function StaffTable({ staff, branches, companyId }: StaffTablePro
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Staff Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <form onSubmit={handleCreate}>
+            <DialogHeader>
+              <DialogTitle>Create Staff Profile</DialogTitle>
+              <DialogDescription>
+                Add a new staff member to your team
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="create-branchId">Branch *</Label>
+                <select
+                  id="create-branchId"
+                  name="branchId"
+                  required
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Select a branch</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="create-displayName">Display Name *</Label>
+                <Input
+                  id="create-displayName"
+                  name="displayName"
+                  type="text"
+                  placeholder="John Doe"
+                  required
+                  maxLength={100}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This name will be shown to customers when they tip
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="create-position">Position</Label>
+                <Input
+                  id="create-position"
+                  name="position"
+                  type="text"
+                  placeholder="Waiter, Barista, etc."
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="create-avatarUrl">Avatar URL (Optional)</Label>
+                <Input
+                  id="create-avatarUrl"
+                  name="avatarUrl"
+                  type="url"
+                  placeholder="https://example.com/avatar.jpg"
+                />
+                <p className="text-xs text-muted-foreground">
+                  URL to staff member&apos;s profile picture
+                </p>
+              </div>
+
+              <Separator className="my-2" />
+              <div className="text-sm font-medium">Account Credentials</div>
+              <p className="text-xs text-muted-foreground">
+                A user account will be created for this staff member to access their dashboard
+              </p>
+
+              <div className="grid gap-2">
+                <Label htmlFor="create-email">Email *</Label>
+                <Input
+                  id="create-email"
+                  name="email"
+                  type="email"
+                  placeholder="staff@example.com"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Staff member&apos;s email address for login
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="create-password">Password *</Label>
+                <Input
+                  id="create-password"
+                  name="password"
+                  type="password"
+                  placeholder="Minimum 8 characters"
+                  required
+                  minLength={8}
+                  maxLength={255}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Password must be at least 8 characters long
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleCreateDialogChange(false)}
+                disabled={createLoading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createLoading}>
+                {createLoading ? (
+                  <>
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Staff Profile'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

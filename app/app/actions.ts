@@ -698,7 +698,7 @@ export async function updateCompanySettings(formData: FormData) {
       sessionId,
     });
 
-    revalidatePath('/app/settings/company');
+    revalidatePath('/app/settings');
     return { success: true };
   } catch (err) {
     if (err instanceof InputParseError) {
@@ -736,7 +736,7 @@ export async function updateAccountSettings(formData: FormData) {
       email: data.email?.toString(),
     });
 
-    revalidatePath('/app/settings/account');
+    revalidatePath('/app/settings');
     return { success: true };
   } catch (err) {
     if (err instanceof InputParseError) {
@@ -773,7 +773,7 @@ export async function updatePassword(formData: FormData) {
       confirmPassword: data.confirmPassword?.toString() || '',
     });
 
-    revalidatePath('/app/settings/account');
+    revalidatePath('/app/settings');
     return { success: true };
   } catch (err) {
     if (err instanceof InputParseError) {

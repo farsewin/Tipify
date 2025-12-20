@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Filter, X, MapPin, CheckCircle2, XCircle, Settings, Edit, Power, QrCode, Download } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { Input } from '../../_components/ui/input';
@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '../../_components/ui/dialog';
 import { Label } from '../../_components/ui/label';
-import { updateBranch, generateBranchQR } from '../actions';
+import { updateBranch, generateBranchQR, createBranch } from '../actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -44,14 +44,17 @@ interface BranchesTableProps {
   branches: Branch[];
   companyId: string;
   currency: string;
+  openCreateDialog?: boolean;
+  onOpenCreateDialogChange?: (open: boolean) => void;
 }
 
-export default function BranchesTable({ branches, companyId, currency }: BranchesTableProps) {
+export default function BranchesTable({ branches, companyId, currency, openCreateDialog = false, onOpenCreateDialogChange }: BranchesTableProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(openCreateDialog);
   const [qrCodeBranch, setQrCodeBranch] = useState<Branch | null>(null);
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [qrData, setQrData] = useState<{
@@ -61,7 +64,18 @@ export default function BranchesTable({ branches, companyId, currency }: Branche
   } | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState<string | null>(null);
+
+  // Sync external openCreateDialog prop with internal state
+  useEffect(() => {
+    setIsCreateDialogOpen(openCreateDialog);
+  }, [openCreateDialog]);
+
+  const handleCreateDialogChange = (open: boolean) => {
+    setIsCreateDialogOpen(open);
+    onOpenCreateDialogChange?.(open);
+  };
 
   // Apply filters
   const filteredBranches = useMemo(() => {
@@ -115,6 +129,29 @@ export default function BranchesTable({ branches, companyId, currency }: Branche
     setLoading(false);
   };
 
+  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (createLoading) return;
+
+    setCreateLoading(true);
+    const formData = new FormData(event.currentTarget);
+    formData.append('companyId', companyId);
+
+    const result = await createBranch(formData);
+    
+    if (result?.error) {
+      toast.error(result.error);
+    } else if (result?.success) {
+      toast.success('Branch created successfully!');
+      handleCreateDialogChange(false);
+      // Reset form
+      event.currentTarget.reset();
+      router.refresh();
+    }
+    
+    setCreateLoading(false);
+  };
+
   const handleToggleActive = async (branch: Branch) => {
     if (toggleLoading === branch.id) return;
     
@@ -149,9 +186,9 @@ export default function BranchesTable({ branches, companyId, currency }: Branche
     try {
       const result = await generateBranchQR(companyId, qrCodeBranch.id);
 
-      if (result?.error) {
+      if (result && 'error' in result) {
         toast.error(result.error);
-      } else if (result?.url && result?.dataUrl && result?.svg) {
+      } else if (result && 'url' in result && 'dataUrl' in result && 'svg' in result) {
         setQrData(result);
         toast.success('QR code generated!');
       }
@@ -547,6 +584,78 @@ export default function BranchesTable({ branches, companyId, currency }: Branche
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Branch Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogChange}>
+        <DialogContent>
+          <form onSubmit={handleCreate}>
+            <DialogHeader>
+              <DialogTitle>Create New Branch</DialogTitle>
+              <DialogDescription>
+                Add a new location for your company
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="create-name">Branch Name *</Label>
+                <Input
+                  id="create-name"
+                  name="name"
+                  type="text"
+                  placeholder="Downtown Location"
+                  required
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="create-location">Location</Label>
+                <Input
+                  id="create-location"
+                  name="location"
+                  type="text"
+                  placeholder="123 Main St, City, Country"
+                  maxLength={255}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="create-timezone">Timezone</Label>
+                <Input
+                  id="create-timezone"
+                  name="timezone"
+                  type="text"
+                  placeholder="UTC"
+                  defaultValue="UTC"
+                />
+                <p className="text-xs text-muted-foreground">
+                  IANA timezone (e.g., America/New_York, Europe/London)
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleCreateDialogChange(false)}
+                disabled={createLoading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createLoading}>
+                {createLoading ? (
+                  <>
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Branch'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
