@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { AuthenticationService } from '@/src/services/authentication.service';
+import { getAuthenticationService } from '@/src/service-locator';
 import { SESSION_COOKIE } from '@/config';
 
-const authenticationService = new AuthenticationService();
+const authenticationService = getAuthenticationService();
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;

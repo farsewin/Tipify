@@ -15,7 +15,6 @@ import {
   staffProfiles,
   subscriptionPlans,
   tips,
-  todos,
   users,
 } from './schema';
 
@@ -36,8 +35,7 @@ export const db = drizzle(client, {
     payoutBatches,
     payoutItems,
     subscriptionPlans,
-    auditLogs,
-    todos, // Legacy, to be removed
+    auditLogs
   },
 });
 
@@ -57,7 +55,6 @@ type Schema = {
   payoutItems: typeof payoutItems;
   subscriptionPlans: typeof subscriptionPlans;
   auditLogs: typeof auditLogs;
-  todos: typeof todos;
 };
 export type Transaction = SQLiteTransaction<
   'async',

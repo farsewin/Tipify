@@ -205,15 +205,3 @@ export const auditLogs = sqliteTable('audit_log', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-// ============================================
-// LEGACY (to be removed later)
-// ============================================
-
-export const todos = sqliteTable('todos', {
-  id: integer('id').primaryKey(),
-  todo: text('todo').notNull(),
-  completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id),
-});
