@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '../../_components/ui/dialog';
 import { Label } from '../../_components/ui/label';
-import { updateBranch, generateBranchQR, createBranch } from '../actions';
+import { updateBranch, generateBranchQR, createBranch } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';

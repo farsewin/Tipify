@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { cn } from '../../_components/utils';
-import { signOut } from '../../(auth)/actions';
+import { signOut } from '../../../src/actions/auth.actions';
 
 const navItems = [
   { href: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },

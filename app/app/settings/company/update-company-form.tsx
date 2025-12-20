@@ -6,7 +6,7 @@ import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
-import { updateCompanySettings } from '../../actions';
+import { updateCompanySettings } from '../../../../src/actions/actions';
 import { toast } from 'sonner';
 import type { Company } from '@/src/models/company.model';
 

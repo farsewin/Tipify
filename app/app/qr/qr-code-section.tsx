@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../../_components/ui/card';
-import { generateBranchQR, generateStaffQR } from '../actions';
+import { generateBranchQR, generateStaffQR } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import Image from 'next/image';
 

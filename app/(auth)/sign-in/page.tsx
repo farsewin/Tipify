@@ -15,7 +15,7 @@ import {
 import { Input } from '../../_components/ui/input';
 import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
-import { signIn } from '../actions';
+import { signIn } from '../../../src/actions/auth.actions';
 
 export default function SignIn() {
   const [error, setError] = useState<string>();

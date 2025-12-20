@@ -16,18 +16,6 @@ export function getAuthenticationService() {
   return AuthenticationService.getInstance();
 }
 
-// CrashReporterService handles reporting errors to Sentry.
-import { CrashReporterService } from '@/src/services/crash-reporter.service';
-export function getCrashReporterService() {
-  return CrashReporterService.getInstance();
-}
-
-// InstrumentationService handles performance monitoring and tracing via Sentry.
-import { InstrumentationService } from '@/src/services/instrumentation.service';
-export function getInstrumentationService() {
-  return InstrumentationService.getInstance();
-}
-
 // TransactionManagerService wraps database transactions and manages nested transactions.
 import { TransactionManagerService } from '@/src/services/transaction-manager.service';
 export function getTransactionManagerService() {

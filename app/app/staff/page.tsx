@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE } from '@/config';
-import { getStaff, getCompany, getBranches } from '../actions';
+import { getStaff, getCompany, getBranches } from '../../../src/actions/actions';
 import { getAuthenticationService } from '@/src/service-locator';
 import { getUserCompanies } from '@/src/shared/helpers/access-control';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';

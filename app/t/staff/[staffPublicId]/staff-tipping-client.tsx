@@ -22,7 +22,7 @@ import {
 } from '../../../_components/ui/dialog';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
-import { processTipPayment } from '../../../app/actions';
+import { processTipPayment } from '../../../../src/actions/actions';
 import { toast } from 'sonner';
 import type { Company } from '@/src/models/company.model';
 import type { StaffProfile } from '@/src/models/staff-profile.model';

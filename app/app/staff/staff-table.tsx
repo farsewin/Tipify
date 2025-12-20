@@ -22,7 +22,7 @@ import {
 } from '../../_components/ui/dialog';
 import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
-import { updateStaff, generateStaffQR, createStaff } from '../actions';
+import { updateStaff, generateStaffQR, createStaff } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';

@@ -6,7 +6,7 @@ import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
-import { updatePassword } from '../../actions';
+import { updatePassword } from '../../../../src/actions/actions';
 import { toast } from 'sonner';
 
 export default function UpdatePasswordForm() {

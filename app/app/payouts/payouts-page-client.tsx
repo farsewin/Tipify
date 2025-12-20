@@ -22,7 +22,7 @@ import {
 import { Input } from '../../_components/ui/input';
 import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
-import { createPayoutBatch, getPayoutBatchDetails, completePayoutBatch, getTips, getStaff } from '../actions';
+import { createPayoutBatch, getPayoutBatchDetails, completePayoutBatch, getTips, getStaff } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import type { Branch } from '@/src/models/branch.model';
 import type { PayoutBatch } from '@/src/models/payout-batch.model';

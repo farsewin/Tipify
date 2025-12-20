@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../_components/ui/dropdown-menu';
-import { markTipsAsPaid } from '../actions';
+import { markTipsAsPaid } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 

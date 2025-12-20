@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, UserCircle, Settings, LogOut } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { cn } from '../../_components/utils';
-import { signOut } from '../../(auth)/actions';
+import { signOut } from '../../../src/actions/auth.actions';
 
 const navItems = [
   { href: '/staff/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
