@@ -66,7 +66,6 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
   const [createLoading, setCreateLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState<string | null>(null);
 
-  // Sync external openCreateDialog prop with internal state
   useEffect(() => {
     setIsCreateDialogOpen(openCreateDialog);
   }, [openCreateDialog]);
@@ -76,17 +75,14 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
     onOpenCreateDialogChange?.(open);
   };
 
-  // Create branch map
   const branchMap = useMemo(() => {
     return new Map(branches.map(b => [b.id, b.name]));
   }, [branches]);
 
-  // Get unique branches for filter
   const uniqueBranches = useMemo(() => {
     return branches.map(b => b.name).sort();
   }, [branches]);
 
-  // Apply filters
   const filteredStaff = useMemo(() => {
     return staff.filter((member) => {
       if (statusFilter) {
@@ -142,15 +138,18 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
       
       const result = await res.json();
 
-      if (!res.ok || result.error) {
+      if (!res.ok) {
         toast.error(result.error || 'Failed to update staff');
-      } else if (result.success) {
-        toast.success('Staff profile updated successfully');
-        setIsEditDialogOpen(false);
-        setEditingStaff(null);
-        router.refresh();
+        setLoading(false);
+        return;
       }
+
+      toast.success('Staff profile updated successfully');
+      setIsEditDialogOpen(false);
+      setEditingStaff(null);
+      router.refresh();
     } catch (err) {
+      console.error('Update error:', err);
       toast.error('Failed to update staff');
     } finally {
       setLoading(false);
@@ -162,7 +161,8 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
     if (createLoading) return;
 
     setCreateLoading(true);
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
     try {
       const res = await fetch('/api/staff', {
@@ -181,15 +181,18 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
       
       const result = await res.json();
 
-      if (!res.ok || result.error) {
+      if (!res.ok) {
         toast.error(result.error || 'Failed to create staff');
-      } else if (result.success) {
-        toast.success('Staff profile created successfully!');
-        handleCreateDialogChange(false);
-        event.currentTarget.reset();
-        router.refresh();
+        setCreateLoading(false);
+        return;
       }
+
+      form.reset();
+      toast.success('Staff profile created successfully!');
+      handleCreateDialogChange(false);
+      router.refresh();
     } catch (err) {
+      console.error('Create error:', err);
       toast.error('Failed to create staff');
     } finally {
       setCreateLoading(false);
@@ -213,13 +216,16 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
       
       const result = await res.json();
 
-      if (!res.ok || result.error) {
+      if (!res.ok) {
         toast.error(result.error || 'Failed to update staff');
-      } else if (result.success) {
-        toast.success(`Staff profile ${member.active ? 'deactivated' : 'activated'} successfully`);
-        router.refresh();
+        setToggleLoading(null);
+        return;
       }
+
+      toast.success(`Staff profile ${member.active ? 'deactivated' : 'activated'} successfully`);
+      router.refresh();
     } catch (err) {
+      console.error('Toggle error:', err);
       toast.error('Failed to update staff');
     } finally {
       setToggleLoading(null);
@@ -240,13 +246,20 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
       const res = await fetch(`/api/staff/${qrCodeStaff.id}/qr?companyId=${companyId}`);
       const result = await res.json();
 
-      if (!res.ok || result.error) {
+      if (!res.ok) {
         toast.error(result.error || 'Failed to generate QR code');
-      } else if (result.url && result.dataUrl && result.svg) {
+        setQrLoading(false);
+        return;
+      }
+
+      if (result.url && result.dataUrl && result.svg) {
         setQrData(result);
         toast.success('QR code generated!');
+      } else {
+        toast.error('Invalid QR code response');
       }
     } catch (error) {
+      console.error('QR generation error:', error);
       toast.error('Failed to generate QR code');
     } finally {
       setQrLoading(false);
@@ -274,7 +287,6 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
     URL.revokeObjectURL(url);
   };
 
-  // Calculate statistics
   const stats = useMemo(() => {
     const active = filteredStaff.filter(s => s.active).length;
     const inactive = filteredStaff.filter(s => !s.active).length;

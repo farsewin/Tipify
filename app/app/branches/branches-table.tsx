@@ -66,7 +66,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
   const [createLoading, setCreateLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState<string | null>(null);
 
-  // Sync external openCreateDialog prop with internal state
   useEffect(() => {
     setIsCreateDialogOpen(openCreateDialog);
   }, [openCreateDialog]);
@@ -76,7 +75,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     onOpenCreateDialogChange?.(open);
   };
 
-  // Apply filters
   const filteredBranches = useMemo(() => {
     return branches.filter((branch) => {
       if (statusFilter) {
@@ -126,15 +124,20 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
       
       const result = await res.json();
       
-      if (!res.ok || result.error) {
+      // Check for error response
+      if (!res.ok) {
         toast.error(result.error || 'Failed to update branch');
-      } else if (result.success) {
-        toast.success('Branch updated successfully');
-        setIsEditDialogOpen(false);
-        setEditingBranch(null);
-        router.refresh();
+        setLoading(false);
+        return;
       }
+      
+      // Success
+      toast.success('Branch updated successfully');
+      setIsEditDialogOpen(false);
+      setEditingBranch(null);
+      router.refresh();
     } catch (err) {
+      console.error('Update error:', err);
       toast.error('Failed to update branch');
     } finally {
       setLoading(false);
@@ -146,7 +149,8 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     if (createLoading) return;
 
     setCreateLoading(true);
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     
     try {
       const res = await fetch('/api/branches', {
@@ -162,15 +166,20 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
       
       const result = await res.json();
       
-      if (!res.ok || result.error) {
+      // Check for error response
+      if (!res.ok) {
         toast.error(result.error || 'Failed to create branch');
-      } else if (result.success) {
-        toast.success('Branch created successfully!');
-        handleCreateDialogChange(false);
-        event.currentTarget.reset();
-        router.refresh();
+        setCreateLoading(false);
+        return;
       }
+      
+      // Success - reset form before closing dialog
+      form.reset();
+      toast.success('Branch created successfully!');
+      handleCreateDialogChange(false);
+      router.refresh();
     } catch (err) {
+      console.error('Create error:', err);
       toast.error('Failed to create branch');
     } finally {
       setCreateLoading(false);
@@ -194,13 +203,18 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
       
       const result = await res.json();
       
-      if (!res.ok || result.error) {
+      // Check for error response
+      if (!res.ok) {
         toast.error(result.error || 'Failed to update branch');
-      } else if (result.success) {
-        toast.success(`Branch ${branch.active ? 'deactivated' : 'activated'} successfully`);
-        router.refresh();
+        setToggleLoading(null);
+        return;
       }
+      
+      // Success
+      toast.success(`Branch ${branch.active ? 'deactivated' : 'activated'} successfully`);
+      router.refresh();
     } catch (err) {
+      console.error('Toggle error:', err);
       toast.error('Failed to update branch');
     } finally {
       setToggleLoading(null);
@@ -221,13 +235,19 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
       const res = await fetch(`/api/branches/${qrCodeBranch.id}/qr?companyId=${companyId}`);
       const result = await res.json();
 
-      if (!res.ok || result.error) {
+      if (!res.ok) {
         toast.error(result.error || 'Failed to generate QR code');
-      } else if (result.url && result.dataUrl && result.svg) {
+        return;
+      }
+      
+      if (result.url && result.dataUrl && result.svg) {
         setQrData(result);
         toast.success('QR code generated!');
+      } else {
+        toast.error('Invalid QR code response');
       }
     } catch (error) {
+      console.error('QR generation error:', error);
       toast.error('Failed to generate QR code');
     } finally {
       setQrLoading(false);
@@ -265,7 +285,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     }).format(amountInUnits);
   };
 
-  // Calculate statistics
   const stats = useMemo(() => {
     const active = filteredBranches.filter(b => b.active).length;
     const inactive = filteredBranches.filter(b => !b.active).length;
@@ -330,7 +349,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
           <span className="text-sm font-medium">Filters:</span>
         </div>
 
-        {/* Status Filter */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-8">
@@ -352,7 +370,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Search Input */}
         <Input
           placeholder="Search by name or location..."
           value={searchQuery}
@@ -360,7 +377,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
           className="h-8 w-[200px]"
         />
 
-        {/* Clear Filters */}
         {hasActiveFilters && (
           <Button
             variant="ghost"
@@ -373,7 +389,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
           </Button>
         )}
 
-        {/* Results Count */}
         <div className="ml-auto text-sm text-muted-foreground">
           Showing {filteredBranches.length} of {branches.length} branches
         </div>
@@ -696,4 +711,3 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     </div>
   );
 }
-
