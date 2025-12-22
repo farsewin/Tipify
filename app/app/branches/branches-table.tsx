@@ -21,7 +21,6 @@ import {
   DialogTitle,
 } from '../../_components/ui/dialog';
 import { Label } from '../../_components/ui/label';
-import { updateBranch, generateBranchQR, createBranch } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -113,24 +112,33 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     setLoading(true);
     const formData = new FormData(event.currentTarget);
     
-    const result = await updateBranch({
-      branchId: editingBranch.id,
-      companyId: companyId,
-      name: formData.get('name') as string,
-      location: formData.get('location') as string || null,
-      timezone: formData.get('timezone') as string,
-    });
-    
-    if (result?.error) {
-      toast.error(result.error);
-    } else if (result?.success) {
-      toast.success('Branch updated successfully');
-      setIsEditDialogOpen(false);
-      setEditingBranch(null);
-      router.refresh();
+    try {
+      const res = await fetch(`/api/branches/${editingBranch.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          name: formData.get('name') as string,
+          location: formData.get('location') as string || null,
+          timezone: formData.get('timezone') as string,
+        }),
+      });
+      
+      const result = await res.json();
+      
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to update branch');
+      } else if (result.success) {
+        toast.success('Branch updated successfully');
+        setIsEditDialogOpen(false);
+        setEditingBranch(null);
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error('Failed to update branch');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -140,24 +148,33 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     setCreateLoading(true);
     const formData = new FormData(event.currentTarget);
     
-    const result = await createBranch({
-      companyId: companyId,
-      name: formData.get('name') as string,
-      location: formData.get('location') as string || undefined,
-      timezone: formData.get('timezone') as string || undefined,
-    });
-    
-    if (result?.error) {
-      toast.error(result.error);
-    } else if (result?.success) {
-      toast.success('Branch created successfully!');
-      handleCreateDialogChange(false);
-      // Reset form
-      event.currentTarget.reset();
-      router.refresh();
+    try {
+      const res = await fetch('/api/branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          name: formData.get('name') as string,
+          location: formData.get('location') as string || undefined,
+          timezone: formData.get('timezone') as string || undefined,
+        }),
+      });
+      
+      const result = await res.json();
+      
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to create branch');
+      } else if (result.success) {
+        toast.success('Branch created successfully!');
+        handleCreateDialogChange(false);
+        event.currentTarget.reset();
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error('Failed to create branch');
+    } finally {
+      setCreateLoading(false);
     }
-    
-    setCreateLoading(false);
   };
 
   const handleToggleActive = async (branch: Branch) => {
@@ -165,20 +182,29 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     
     setToggleLoading(branch.id);
 
-    const result = await updateBranch({
-      branchId: branch.id,
-      companyId: companyId,
-      active: !branch.active,
-    });
-    
-    if (result?.error) {
-      toast.error(result.error);
-    } else if (result?.success) {
-      toast.success(`Branch ${branch.active ? 'deactivated' : 'activated'} successfully`);
-      router.refresh();
+    try {
+      const res = await fetch(`/api/branches/${branch.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          active: !branch.active,
+        }),
+      });
+      
+      const result = await res.json();
+      
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to update branch');
+      } else if (result.success) {
+        toast.success(`Branch ${branch.active ? 'deactivated' : 'activated'} successfully`);
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error('Failed to update branch');
+    } finally {
+      setToggleLoading(null);
     }
-    
-    setToggleLoading(null);
   };
 
   const handleGenerateQR = (branch: Branch) => {
@@ -192,11 +218,12 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     
     setQrLoading(true);
     try {
-      const result = await generateBranchQR(companyId, qrCodeBranch.id);
+      const res = await fetch(`/api/branches/${qrCodeBranch.id}/qr?companyId=${companyId}`);
+      const result = await res.json();
 
-      if (result && 'error' in result) {
-        toast.error(result.error);
-      } else if (result && 'url' in result && 'dataUrl' in result && 'svg' in result) {
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to generate QR code');
+      } else if (result.url && result.dataUrl && result.svg) {
         setQrData(result);
         toast.success('QR code generated!');
       }

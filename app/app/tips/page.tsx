@@ -1,7 +1,10 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE } from '@/config';
-import { getTips, getCompany, getBranches, getStaff } from '../../../src/actions/actions';
+import { getCompany } from '../companies/actions';
+import { getBranches } from '../branches/actions';
+import { getStaff } from '../staff/actions';
+import { getTips } from './actions';
 import { getUserCompanies } from '@/src/shared/helpers/access-control';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
 import {

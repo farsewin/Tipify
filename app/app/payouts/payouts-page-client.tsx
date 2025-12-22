@@ -22,7 +22,6 @@ import {
 import { Input } from '../../_components/ui/input';
 import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
-import { createPayoutBatch, getPayoutBatchDetails, completePayoutBatch, getTips, getStaff } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import type { Branch } from '@/src/models/branch.model';
 import type { PayoutBatch } from '@/src/models/payout-batch.model';
@@ -94,11 +93,9 @@ export default function PayoutsPageClient({
   const loadPendingTips = async () => {
     setLoadingTips(true);
     try {
-      const tips = await getTips(companyId, {
-        distributionStatus: 'PENDING',
-        paymentStatus: 'SUCCEEDED',
-      });
-      setPendingTips(tips || []);
+      const res = await fetch(`/api/tips?companyId=${companyId}&distributionStatus=PENDING&paymentStatus=SUCCEEDED`);
+      const data = await res.json();
+      setPendingTips(data.tips || []);
     } catch (error) {
       toast.error('Failed to load pending tips');
       console.error('Load pending tips error:', error);
@@ -119,12 +116,14 @@ export default function PayoutsPageClient({
     
     setLoadingDetails(true);
     try {
-      const [details, staff] = await Promise.all([
-        getPayoutBatchDetails(companyId, selectedBatchId),
-        getStaff(companyId),
+      const [detailsRes, staffRes] = await Promise.all([
+        fetch(`/api/payouts/${selectedBatchId}?companyId=${companyId}`),
+        fetch(`/api/staff?companyId=${companyId}`),
       ]);
+      const details = await detailsRes.json();
+      const staffData = await staffRes.json();
       setPayoutBatchDetails(details);
-      const map = new Map(staff.map((s) => [s.id, s]));
+      const map = new Map(staffData.staff.map((s: any) => [s.id, s]));
       setStaffMap(map);
     } catch (error) {
       toast.error('Failed to load payout batch details');
@@ -188,16 +187,22 @@ export default function PayoutsPageClient({
     setCreateLoading(true);
 
     try {
-      const result = await createPayoutBatch({
-        companyId: companyId,
-        branchId: selectedBranchId || undefined,
-        payoutDate: payoutDate,
-        tipIds: Array.from(selectedTipIds),
+      const res = await fetch('/api/payouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          branchId: selectedBranchId || undefined,
+          payoutDate: payoutDate,
+          tipIds: Array.from(selectedTipIds),
+        }),
       });
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.success) {
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to create payout batch');
+      } else if (result.success) {
         toast.success('Payout batch created successfully!');
         setIsCreateDialogOpen(false);
         router.refresh();
@@ -218,11 +223,15 @@ export default function PayoutsPageClient({
     }
 
     try {
-      const result = await completePayoutBatch(companyId, selectedBatchId);
+      const res = await fetch(`/api/payouts/${selectedBatchId}?companyId=${companyId}`, {
+        method: 'PATCH',
+      });
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.success) {
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to complete payout batch');
+      } else if (result.success) {
         toast.success('Payout batch marked as completed!');
         setIsDetailsDialogOpen(false);
         router.refresh();

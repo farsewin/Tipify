@@ -22,7 +22,6 @@ import {
 } from '../../../_components/ui/dialog';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
-import { processTipPayment } from '../../../../src/actions/actions';
 import { toast } from 'sonner';
 import type { Company } from '@/src/models/company.model';
 import type { StaffProfile } from '@/src/models/staff-profile.model';
@@ -84,19 +83,25 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
     setLoading(true);
 
     try {
-      const result = await processTipPayment({
-        companyId: company.id,
-        branchId: staff.branchId,
-        staffProfileId: staff.id,
-        amount: amountInCents,
-        currency: company.currency,
-        customerNote: note || undefined,
-        customerRating: rating || undefined,
+      const res = await fetch('/api/tips/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: company.id,
+          branchId: staff.branchId,
+          staffProfileId: staff.id,
+          amount: amountInCents,
+          currency: company.currency,
+          customerNote: note || undefined,
+          customerRating: rating || undefined,
+        }),
       });
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.success && result.tipId) {
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to process payment');
+      } else if (result.success && result.tipId) {
         // Show success dialog
         setPaymentResult({
           tipId: result.tipId,

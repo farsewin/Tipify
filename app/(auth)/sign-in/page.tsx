@@ -15,9 +15,10 @@ import {
 import { Input } from '../../_components/ui/input';
 import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
-import { signIn } from '../../../src/actions/auth.actions';
+import { useRouter } from 'next/navigation';
 
 export default function SignIn() {
+  const router = useRouter();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
 
@@ -28,14 +29,30 @@ export default function SignIn() {
     const formData = new FormData(event.currentTarget);
 
     setLoading(true);
-    const res = await signIn({
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
-    });
-    if (res && res.error) {
-      setError(res.error);
+    setError(undefined);
+
+    try {
+      const res = await fetch('/api/auth/sign-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.get('email') as string,
+          password: formData.get('password') as string,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError(data.error || 'An error occurred');
+      } else if (data.success && data.redirect) {
+        router.push(data.redirect);
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

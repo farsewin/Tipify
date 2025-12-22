@@ -6,7 +6,6 @@ import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
-import { updatePassword } from '../../../../src/actions/actions';
 import { toast } from 'sonner';
 
 export default function UpdatePasswordForm() {
@@ -34,15 +33,21 @@ export default function UpdatePasswordForm() {
     setLoading(true);
 
     try {
-      const result = await updatePassword({
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword,
-        confirmPassword: formData.confirmPassword,
+      const res = await fetch('/api/account/password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+          confirmPassword: formData.confirmPassword,
+        }),
       });
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.success) {
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to update password');
+      } else if (result.success) {
         toast.success('Password updated successfully!');
         setFormData({
           currentPassword: '',

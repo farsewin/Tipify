@@ -6,7 +6,6 @@ import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
-import { updateAccountSettings } from '../../../../src/actions/actions';
 import { toast } from 'sonner';
 import type { User } from '@/src/models/user.model';
 
@@ -27,14 +26,20 @@ export default function UpdateAccountForm({ user }: UpdateAccountFormProps) {
     setLoading(true);
 
     try {
-      const result = await updateAccountSettings({
-        name: formData.name,
-        email: formData.email,
+      const res = await fetch('/api/account/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+        }),
       });
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.success) {
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to update account settings');
+      } else if (result.success) {
         toast.success('Account settings updated successfully!');
         router.refresh();
       }

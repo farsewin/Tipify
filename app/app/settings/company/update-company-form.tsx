@@ -6,7 +6,6 @@ import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
 import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
-import { updateCompanySettings } from '../../../../src/actions/actions';
 import { toast } from 'sonner';
 import type { Company } from '@/src/models/company.model';
 
@@ -29,17 +28,22 @@ export default function UpdateCompanyForm({ company }: UpdateCompanyFormProps) {
     setLoading(true);
 
     try {
-      const result = await updateCompanySettings({
-        companyId: company.id,
-        name: formData.name,
-        legalName: formData.legalName || undefined,
-        country: formData.country,
-        currency: formData.currency,
+      const res = await fetch(`/api/companies/${company.id}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          legalName: formData.legalName || undefined,
+          country: formData.country,
+          currency: formData.currency,
+        }),
       });
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.success) {
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to update company settings');
+      } else if (result.success) {
         toast.success('Company settings updated successfully!');
         router.refresh();
       }

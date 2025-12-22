@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE } from '@/config';
-import { getMyStaffProfile } from '../../../src/actions/actions';
+import { getMyStaffProfile } from '../dashboard/actions';
 import { getAuthenticationService } from '@/src/service-locator';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
 import {

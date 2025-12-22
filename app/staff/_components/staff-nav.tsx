@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, UserCircle, Settings, LogOut } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { cn } from '../../_components/utils';
-import { signOut } from '../../../src/actions/auth.actions';
+import { useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/staff/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
@@ -14,6 +14,22 @@ const navItems = [
 
 export function StaffNav() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      const res = await fetch('/api/auth/sign-out', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success && data.redirect) {
+        router.push(data.redirect);
+      }
+    } catch (err) {
+      console.error('Sign out error:', err);
+      router.push('/sign-in');
+    }
+  };
 
   return (
     <nav className="border-r bg-white h-screen w-64 p-4 space-y-2 shadow-sm">
@@ -61,12 +77,10 @@ export function StaffNav() {
             Settings
           </Button>
         </Link>
-        <form action={signOut}>
-          <Button type="submit" variant="ghost" className="w-full justify-start">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
-        </form>
+        <Button type="button" variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
       </div>
     </nav>
   );

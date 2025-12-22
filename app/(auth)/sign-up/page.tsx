@@ -15,9 +15,10 @@ import {
 import { Input } from '../../_components/ui/input';
 import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
-import { signUp } from '../../../src/actions/auth.actions';
+import { useRouter } from 'next/navigation';
 
 export default function SignUp() {
+  const router = useRouter();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
 
@@ -36,20 +37,36 @@ export default function SignUp() {
     }
 
     setLoading(true);
-    const res = await signUp({
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      password: password,
-      confirmPassword: confirmPassword,
-      companyName: formData.get('company_name') as string,
-      companyLegalName: formData.get('company_legal_name') as string || undefined,
-      country: formData.get('country') as string,
-      currency: formData.get('currency') as string,
-    });
-    if (res && res.error) {
-      setError(res.error);
+    setError(undefined);
+
+    try {
+      const res = await fetch('/api/auth/sign-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.get('name') as string,
+          email: formData.get('email') as string,
+          password: password,
+          confirmPassword: confirmPassword,
+          companyName: formData.get('company_name') as string,
+          companyLegalName: formData.get('company_legal_name') as string || undefined,
+          country: formData.get('country') as string,
+          currency: formData.get('currency') as string,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError(data.error || 'An error occurred');
+      } else if (data.success && data.redirect) {
+        router.push(data.redirect);
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

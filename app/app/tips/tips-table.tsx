@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../_components/ui/dropdown-menu';
-import { markTipsAsPaid } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 
@@ -117,10 +116,20 @@ export default function TipsTable({ tips, companyId }: TipsTableProps) {
 
     setLoading(true);
     try {
-      const result = await markTipsAsPaid(companyId, Array.from(selectedTips));
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.success) {
+      const res = await fetch('/api/tips', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          tipIds: Array.from(selectedTips),
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to mark tips as paid');
+      } else if (result.success) {
         toast.success(`Marked ${selectedTips.size} tip(s) as paid`);
         setSelectedTips(new Set());
         window.location.reload();

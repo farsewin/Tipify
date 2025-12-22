@@ -22,7 +22,6 @@ import {
 } from '../../_components/ui/dialog';
 import { Label } from '../../_components/ui/label';
 import { Separator } from '../../_components/ui/separator';
-import { updateStaff, generateStaffQR, createStaff } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -128,25 +127,34 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
     setLoading(true);
     const formData = new FormData(event.currentTarget);
 
-    const result = await updateStaff({
-      staffProfileId: editingStaff.id,
-      companyId: companyId,
-      displayName: formData.get('displayName') as string,
-      position: formData.get('position') as string || undefined,
-      avatarUrl: formData.get('avatarUrl') as string || null,
-      branchId: formData.get('branchId') as string,
-    });
+    try {
+      const res = await fetch(`/api/staff/${editingStaff.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          displayName: formData.get('displayName') as string,
+          position: formData.get('position') as string || undefined,
+          avatarUrl: formData.get('avatarUrl') as string || null,
+          branchId: formData.get('branchId') as string,
+        }),
+      });
+      
+      const result = await res.json();
 
-    if (result?.error) {
-      toast.error(result.error);
-    } else if (result?.success) {
-      toast.success('Staff profile updated successfully');
-      setIsEditDialogOpen(false);
-      setEditingStaff(null);
-      router.refresh();
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to update staff');
+      } else if (result.success) {
+        toast.success('Staff profile updated successfully');
+        setIsEditDialogOpen(false);
+        setEditingStaff(null);
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error('Failed to update staff');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -156,27 +164,36 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
     setCreateLoading(true);
     const formData = new FormData(event.currentTarget);
 
-    const result = await createStaff({
-      companyId: companyId,
-      branchId: formData.get('branchId') as string,
-      displayName: formData.get('displayName') as string,
-      email: formData.get('email') as string,
-      password: formData.get('password') as string,
-      position: formData.get('position') as string || undefined,
-      avatarUrl: formData.get('avatarUrl') as string || undefined,
-    });
+    try {
+      const res = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          branchId: formData.get('branchId') as string,
+          displayName: formData.get('displayName') as string,
+          email: formData.get('email') as string,
+          password: formData.get('password') as string,
+          position: formData.get('position') as string || undefined,
+          avatarUrl: formData.get('avatarUrl') as string || undefined,
+        }),
+      });
+      
+      const result = await res.json();
 
-    if (result?.error) {
-      toast.error(result.error);
-    } else if (result?.success) {
-      toast.success('Staff profile created successfully!');
-      handleCreateDialogChange(false);
-      // Reset form
-      event.currentTarget.reset();
-      router.refresh();
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to create staff');
+      } else if (result.success) {
+        toast.success('Staff profile created successfully!');
+        handleCreateDialogChange(false);
+        event.currentTarget.reset();
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error('Failed to create staff');
+    } finally {
+      setCreateLoading(false);
     }
-
-    setCreateLoading(false);
   };
 
   const handleToggleActive = async (member: StaffMember) => {
@@ -184,20 +201,29 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
 
     setToggleLoading(member.id);
 
-    const result = await updateStaff({
-      staffProfileId: member.id,
-      companyId: companyId,
-      active: !member.active,
-    });
+    try {
+      const res = await fetch(`/api/staff/${member.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          active: !member.active,
+        }),
+      });
+      
+      const result = await res.json();
 
-    if (result?.error) {
-      toast.error(result.error);
-    } else if (result?.success) {
-      toast.success(`Staff profile ${member.active ? 'deactivated' : 'activated'} successfully`);
-      router.refresh();
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to update staff');
+      } else if (result.success) {
+        toast.success(`Staff profile ${member.active ? 'deactivated' : 'activated'} successfully`);
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error('Failed to update staff');
+    } finally {
+      setToggleLoading(null);
     }
-
-    setToggleLoading(null);
   };
 
   const handleGenerateQR = (member: StaffMember) => {
@@ -211,11 +237,12 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
 
     setQrLoading(true);
     try {
-      const result = await generateStaffQR(companyId, qrCodeStaff.id);
+      const res = await fetch(`/api/staff/${qrCodeStaff.id}/qr?companyId=${companyId}`);
+      const result = await res.json();
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.url && result?.dataUrl && result?.svg) {
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to generate QR code');
+      } else if (result.url && result.dataUrl && result.svg) {
         setQrData(result);
         toast.success('QR code generated!');
       }

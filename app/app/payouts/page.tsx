@@ -1,7 +1,9 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE } from '@/config';
-import { getPayoutBatches, getCompany, getBranches } from '../../../src/actions/actions';
+import { getCompany } from '../companies/actions';
+import { getBranches } from '../branches/actions';
+import { getPayoutBatches } from './actions';
 import { getUserCompanies } from '@/src/shared/helpers/access-control';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
 import PayoutsPageClient from './payouts-page-client';

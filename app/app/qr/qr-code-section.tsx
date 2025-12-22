@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from '../../_components/ui/card';
-import { generateBranchQR, generateStaffQR } from '../../../src/actions/actions';
 import { toast } from 'sonner';
 import Image from 'next/image';
 
@@ -37,14 +36,16 @@ export default function QRCodeSection({
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      const result =
-        type === 'branch'
-          ? await generateBranchQR(companyId, id)
-          : await generateStaffQR(companyId, id);
+      const endpoint = type === 'branch' 
+        ? `/api/branches/${id}/qr?companyId=${companyId}`
+        : `/api/staff/${id}/qr?companyId=${companyId}`;
+      
+      const res = await fetch(endpoint);
+      const result = await res.json();
 
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.url && result?.dataUrl && result?.svg) {
+      if (!res.ok || result.error) {
+        toast.error(result.error || 'Failed to generate QR code');
+      } else if (result.url && result.dataUrl && result.svg) {
         setQrData(result);
         toast.success('QR code generated!');
       }
