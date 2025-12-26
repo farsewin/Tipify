@@ -12,7 +12,6 @@ const createBranchSchema = z.object({
   companyId: z.string(),
   name: z.string().min(1).max(100),
   location: z.string().max(255).optional(),
-  timezone: z.string().default('UTC'),
 });
 
 export async function POST(request: NextRequest) {
@@ -66,7 +65,6 @@ export async function POST(request: NextRequest) {
       name: data.name,
       location: data.location || null,
       slug: `${slug}-${branchId.slice(0, 6)}`,
-      timezone: data.timezone,
       active: true,
     });
 

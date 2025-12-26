@@ -16,7 +16,6 @@ const processTipPaymentSchema = z.object({
   branchId: z.string(),
   staffProfileId: z.string(),
   amount: z.number().int().positive().min(500),
-  currency: z.string().length(3),
   customerNote: z.string().max(500).optional(),
   customerRating: z.number().int().min(1).max(5).optional(),
 });
@@ -32,13 +31,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Company not found' },
         { status: 404 }
-      );
-    }
-
-    if (data.currency !== company.currency) {
-      return NextResponse.json(
-        { error: 'Currency mismatch' },
-        { status: 400 }
       );
     }
 
@@ -67,7 +59,7 @@ export async function POST(request: NextRequest) {
     const result = await transactionService.startTransaction(async (tx) => {
       const paymentResponse = await paymentService.processPayment({
         amount: data.amount,
-        currency: data.currency,
+        currency: 'QAR',
         description: `Tip for ${staff.displayName}`,
         metadata: {
           companyId: data.companyId,
@@ -88,7 +80,6 @@ export async function POST(request: NextRequest) {
           branchId: data.branchId,
           staffProfileId: data.staffProfileId,
           amount: data.amount,
-          currency: data.currency,
           paymentProvider: 'LOCAL_GATEWAY',
           paymentProviderTransactionId: paymentResponse.transactionId,
           paymentStatus: 'SUCCEEDED',

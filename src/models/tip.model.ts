@@ -14,8 +14,7 @@ export const tipSchema = z.object({
   companyId: z.string(),
   branchId: z.string(),
   staffProfileId: z.string(),
-  amount: z.number().int().positive(), // Amount in smallest currency unit (cents)
-  currency: z.string().min(3).max(3), // ISO currency code
+  amount: z.number().int().positive(), // Amount in smallest currency unit (cents) - QAR
   paymentStatus: paymentStatusSchema.default('PENDING'),
   distributionStatus: distributionStatusSchema.default('PENDING'),
   paymentProvider: paymentProviderSchema.default('STRIPE'),
@@ -34,7 +33,6 @@ export const createTipSchema = tipSchema.pick({
   branchId: true,
   staffProfileId: true,
   amount: true,
-  currency: true,
   paymentProvider: true,
   paymentProviderTransactionId: true,
   customerNote: true,

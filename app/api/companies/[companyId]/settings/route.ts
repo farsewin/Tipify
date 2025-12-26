@@ -11,7 +11,6 @@ const updateCompanySchema = z.object({
   name: z.string().min(1).max(100).optional(),
   legalName: z.string().max(200).optional(),
   country: z.string().length(2).optional(),
-  currency: z.string().length(3).optional(),
 });
 
 export async function PATCH(
@@ -49,7 +48,6 @@ export async function PATCH(
     if (data.name !== undefined) updates.name = data.name;
     if (data.legalName !== undefined) updates.legalName = data.legalName;
     if (data.country !== undefined) updates.country = data.country;
-    if (data.currency !== undefined) updates.currency = data.currency;
 
     await companiesRepository.updateCompany(companyId, updates);
 

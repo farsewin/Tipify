@@ -12,7 +12,6 @@ export const companySchema = z.object({
   legalName: z.string().max(200).nullable(),
   slug: z.string().min(1).max(100), // Unique slug for public URLs
   country: z.string().min(2).max(2), // ISO country code
-  currency: z.string().min(3).max(3), // ISO currency code
   subscriptionPlan: subscriptionPlanSchema.default('BASIC'),
   subscriptionStatus: subscriptionStatusSchema.default('TRIALING'),
   paymentProviderCustomerId: z.string().nullable(),
@@ -30,7 +29,6 @@ export const createCompanySchema = companySchema.pick({
   legalName: true,
   slug: true,
   country: true,
-  currency: true,
   subscriptionPlan: true,
   trialEndsAt: true,
 });
@@ -41,7 +39,6 @@ export const updateCompanySchema = companySchema.partial().pick({
   name: true,
   legalName: true,
   country: true,
-  currency: true,
 });
 
 export type UpdateCompany = z.infer<typeof updateCompanySchema>;

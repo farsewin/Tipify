@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
           processedByUserId: user.id,
           payoutDate: parsed.payoutDate,
           totalAmount,
-          currency: company.currency,
         },
         tx
       );
@@ -117,7 +116,6 @@ export async function POST(request: NextRequest) {
             payoutBatchId: payoutBatch.id,
             staffProfileId,
             amount: totals.amount,
-            currency: company.currency,
           },
           tx
         );

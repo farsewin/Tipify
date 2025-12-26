@@ -8,6 +8,13 @@
       "when": 1766238396960,
       "tag": "0000_faulty_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766781517258,
+      "tag": "0001_massive_chronomancer",
+      "breakpoints": true
     }
   ]
 }

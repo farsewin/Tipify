@@ -6,7 +6,6 @@ export const branchSchema = z.object({
   name: z.string().min(1).max(100),
   location: z.string().max(255).nullable(),
   slug: z.string().min(1).max(100), // Unique per company
-  timezone: z.string().default('UTC'),
   active: z.boolean().default(true),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -20,7 +19,6 @@ export const createBranchSchema = branchSchema.pick({
   name: true,
   location: true,
   slug: true,
-  timezone: true,
   active: true,
 });
 
@@ -29,7 +27,6 @@ export type CreateBranch = z.infer<typeof createBranchSchema>;
 export const updateBranchSchema = branchSchema.partial().pick({
   name: true,
   location: true,
-  timezone: true,
   active: true,
 });
 

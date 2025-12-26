@@ -9,8 +9,7 @@ export const payoutBatchSchema = z.object({
   branchId: z.string().nullable(), // Nullable for company-wide payouts
   processedByUserId: z.string(),
   payoutDate: z.date(),
-  totalAmount: z.number().int().positive(),
-  currency: z.string().min(3).max(3),
+  totalAmount: z.number().int().positive(), // Amount in QAR cents
   status: payoutBatchStatusSchema.default('PENDING'),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -25,7 +24,6 @@ export const createPayoutBatchSchema = payoutBatchSchema.pick({
   processedByUserId: true,
   payoutDate: true,
   totalAmount: true,
-  currency: true,
 });
 
 export type CreatePayoutBatch = z.infer<typeof createPayoutBatchSchema>;

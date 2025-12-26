@@ -11,7 +11,6 @@ const updateBranchSchema = z.object({
   companyId: z.string(),
   name: z.string().min(1).max(100).optional(),
   location: z.string().max(255).nullable().optional(),
-  timezone: z.string().optional(),
   active: z.boolean().optional(),
 });
 
@@ -117,7 +116,6 @@ export async function PATCH(
     const updates: any = {};
     if (data.name !== undefined) updates.name = data.name;
     if (data.location !== undefined) updates.location = data.location;
-    if (data.timezone !== undefined) updates.timezone = data.timezone;
     if (data.active !== undefined) updates.active = data.active;
 
     await branchesRepository.updateBranch(branchId, updates);

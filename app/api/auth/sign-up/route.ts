@@ -21,7 +21,6 @@ const signUpSchema = z
     companyName: z.string().min(1).max(100),
     companyLegalName: z.string().max(200).optional(),
     country: z.string().length(2),
-    currency: z.string().length(3),
   })
   .superRefine(({ password, confirmPassword }, ctx) => {
     if (confirmPassword !== password) {
@@ -90,7 +89,6 @@ export async function POST(request: NextRequest) {
           legalName: data.companyLegalName || null,
           slug: `${slug}-${companyId.slice(0, 6)}`,
           country: data.country,
-          currency: data.currency,
           subscriptionPlan: 'BASIC',
           trialEndsAt,
         },

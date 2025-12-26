@@ -92,9 +92,9 @@ async function main() {
     // 3. Create companies
     console.log('🏢 Seeding companies...');
     const companyData = [
-      { name: 'Acme Restaurant', country: 'US', currency: 'USD' },
-      { name: 'Maple Leaf Cafe', country: 'CA', currency: 'CAD' },
-      { name: 'Royal Pub', country: 'UK', currency: 'GBP' },
+      { name: 'Acme Restaurant', country: 'QA' },
+      { name: 'Maple Leaf Cafe', country: 'QA' },
+      { name: 'Royal Pub', country: 'QA' },
     ];
     const createdCompanies = await db
       .insert(companies)
@@ -105,7 +105,6 @@ async function main() {
           legalName: `${data.name} Inc.`,
           slug: `company-${i + 1}`,
           country: data.country,
-          currency: data.currency,
           subscriptionPlan: (['BASIC', 'PRO', 'ENTERPRISE'] as const)[i],
           subscriptionStatus: 'ACTIVE' as const,
         }))
@@ -144,12 +143,6 @@ async function main() {
             name: `${company.name} - Branch ${branchIdx + 1}`,
             location: `${company.country} - Location ${branchIdx + 1}`,
             slug: `branch-${companyIdx + 1}-${branchIdx + 1}`,
-            timezone:
-              company.country === 'US'
-                ? 'America/New_York'
-                : company.country === 'CA'
-                  ? 'America/Toronto'
-                  : 'Europe/London',
             active: true,
           }))
         )
@@ -210,14 +203,12 @@ async function main() {
     ];
     const distributionStatuses: Array<'PENDING' | 'PAID'> = ['PENDING', 'PAID'];
     const tipsData = createdStaff.flatMap((staff) => {
-      const company = createdCompanies.find((c) => c.id === staff.companyId);
       return Array.from({ length: 3 }, () => ({
         id: generateId(),
         companyId: staff.companyId,
         branchId: staff.branchId,
         staffProfileId: staff.id,
         amount: Math.floor(Math.random() * 5000) + 100,
-        currency: company?.currency || 'USD',
         paymentStatus: paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)],
         distributionStatus:
           distributionStatuses[Math.floor(Math.random() * distributionStatuses.length)],
@@ -242,7 +233,6 @@ async function main() {
             processedByUserId: createdUsers[0].id,
             payoutDate: new Date(),
             totalAmount: Math.floor(Math.random() * 100000) + 10000,
-            currency: company.currency,
             status: 'PENDING' as const,
           };
         })
@@ -267,7 +257,6 @@ async function main() {
         payoutBatchId: batch.id,
         staffProfileId: staff.id,
         amount: Math.floor(Math.random() * 5000) + 1000,
-        currency: batch.currency,
       }));
     });
     await db.insert(payoutItems).values(payoutItemsData);

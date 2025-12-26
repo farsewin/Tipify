@@ -34,7 +34,6 @@ export const companies = pgTable('company', {
   legalName: text('legal_name'),
   slug: text('slug').notNull().unique(),
   country: text('country').notNull(),
-  currency: text('currency').notNull(),
   subscriptionPlan: text('subscription_plan', { enum: ['BASIC', 'PRO', 'ENTERPRISE'] })
     .notNull()
     .default('BASIC'),
@@ -77,7 +76,6 @@ export const branches = pgTable('branch', {
   name: text('name').notNull(),
   location: text('location'),
   slug: text('slug').notNull(),
-  timezone: text('timezone').notNull().default('UTC'),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -123,7 +121,6 @@ export const tips = pgTable('tip', {
     .notNull()
     .references(() => staffProfiles.id, { onDelete: 'cascade' }),
   amount: integer('amount').notNull(),
-  currency: text('currency').notNull(),
   paymentStatus: text('payment_status', { enum: ['SUCCEEDED', 'PENDING', 'FAILED'] })
     .notNull()
     .default('PENDING'),
@@ -155,7 +152,6 @@ export const payoutBatches = pgTable('payout_batch', {
     .references(() => users.id, { onDelete: 'cascade' }),
   payoutDate: timestamp('payout_date', { withTimezone: true }).notNull(),
   totalAmount: integer('total_amount').notNull(),
-  currency: text('currency').notNull(),
   status: text('status', { enum: ['PENDING', 'COMPLETED'] })
     .notNull()
     .default('PENDING'),
@@ -172,7 +168,6 @@ export const payoutItems = pgTable('payout_item', {
     .notNull()
     .references(() => staffProfiles.id, { onDelete: 'cascade' }),
   amount: integer('amount').notNull(),
-  currency: text('currency').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
