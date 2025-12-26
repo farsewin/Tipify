@@ -28,11 +28,11 @@ async function getTipData(tipId: string) {
   return { tip, staff };
 }
 
-function formatCurrency(amount: number, currency: string): string {
+function formatCurrency(amount: number): string {
   const amountInUnits = amount / 100;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency,
+    currency: 'QAR',
     minimumFractionDigits: 2,
   }).format(amountInUnits);
 }
@@ -77,7 +77,7 @@ export default async function PaymentSuccessPage({
           <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">You tipped</p>
             <p className="text-3xl font-bold">
-              {formatCurrency(tip.amount, tip.currency)}
+              {formatCurrency(tip.amount)}
             </p>
             {staff && (
               <p className="text-lg">

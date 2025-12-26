@@ -77,7 +77,6 @@ export default async function BranchesPage() {
     <BranchesPageClient
       branches={branches}
       companyId={company.id}
-      currency={company.currency}
     />
   );
 } 

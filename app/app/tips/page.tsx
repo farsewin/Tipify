@@ -45,11 +45,11 @@ async function getCompanyData() {
   }
 }
 
-function formatCurrency(amount: number, currency: string): string {
+function formatCurrency(amount: number): string {
   const amountInUnits = amount / 100;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency,
+    currency: 'QAR',
     minimumFractionDigits: 2,
   }).format(amountInUnits);
 }
@@ -83,7 +83,7 @@ export default async function TipsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalAmount, company.currency)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalAmount)}</div>
             <p className="text-xs text-muted-foreground">{tips.length} transaction{tips.length !== 1 ? 's' : ''}</p>
           </CardContent>
         </Card>
@@ -94,7 +94,7 @@ export default async function TipsPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(pendingAmount, company.currency)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(pendingAmount)}</div>
             <p className="text-xs text-muted-foreground">{pendingTips.length} tip{pendingTips.length !== 1 ? 's' : ''} to distribute</p>
           </CardContent>
         </Card>
@@ -105,7 +105,7 @@ export default async function TipsPage() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(paidAmount, company.currency)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(paidAmount)}</div>
             <p className="text-xs text-muted-foreground">{paidTips.length} tip{paidTips.length !== 1 ? 's' : ''} distributed</p>
           </CardContent>
         </Card>
@@ -135,7 +135,7 @@ export default async function TipsPage() {
                 ...tip,
                 branchName: branchMap.get(tip.branchId) || 'Unknown',
                 staffName: staffMap.get(tip.staffProfileId) || 'Unknown',
-                formattedAmount: formatCurrency(tip.amount, tip.currency),
+                formattedAmount: formatCurrency(tip.amount),
               }))}
               companyId={company.id}
             />

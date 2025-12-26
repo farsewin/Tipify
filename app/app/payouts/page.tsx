@@ -44,7 +44,6 @@ export default async function PayoutsPage() {
       companyId={company.id}
       branches={branches}
       payoutBatches={payoutBatches}
-      currency={company.currency}
     />
   );
 }

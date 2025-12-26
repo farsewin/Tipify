@@ -64,11 +64,11 @@ async function getStaffData() {
   }
 }
 
-function formatCurrency(amount: number, currency: string): string {
+function formatCurrency(amount: number): string {
   const amountInUnits = amount / 100;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency,
+    currency: 'QAR',
     minimumFractionDigits: 2,
   }).format(amountInUnits);
 }
@@ -113,7 +113,7 @@ export default async function StaffDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(totalTipsAmount, tips[0]?.currency || 'QAR')}
+              {formatCurrency(totalTipsAmount)}
             </div>
             <p className="text-xs text-muted-foreground">
               {tips.length} tip{tips.length !== 1 ? 's' : ''} received
@@ -166,7 +166,7 @@ export default async function StaffDashboardPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold">
-                        {formatCurrency(tip.amount, tip.currency)}
+                        {formatCurrency(tip.amount)}
                       </p>
                       {tip.distributionStatus === 'PENDING' && (
                         <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">

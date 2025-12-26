@@ -31,7 +31,6 @@ interface PayoutBatchListItem {
   branchId: string | null;
   payoutDate: Date;
   totalAmount: number;
-  currency: string;
   status: 'PENDING' | 'COMPLETED';
   createdAt: Date;
 }
@@ -40,14 +39,13 @@ interface PayoutsPageClientProps {
   companyId: string;
   branches: Branch[];
   payoutBatches: PayoutBatchListItem[];
-  currency: string;
 }
 
-function formatCurrency(amount: number, currency: string): string {
+function formatCurrency(amount: number): string {
   const amountInUnits = amount / 100;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency,
+    currency: 'QAR',
     minimumFractionDigits: 2,
   }).format(amountInUnits);
 }
@@ -56,7 +54,6 @@ export default function PayoutsPageClient({
   companyId,
   branches,
   payoutBatches: initialPayoutBatches,
-  currency,
 }: PayoutsPageClientProps) {
   const router = useRouter();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -307,7 +304,7 @@ export default function PayoutsPageClient({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-2xl font-bold">
-                      {formatCurrency(batch.totalAmount, batch.currency)}
+                      {formatCurrency(batch.totalAmount)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Created {new Date(batch.createdAt).toLocaleDateString()}
@@ -419,7 +416,7 @@ export default function PayoutsPageClient({
                                 </CardTitle>
                                 <CardDescription>
                                   {tips.length} tip{tips.length !== 1 ? 's' : ''} •{' '}
-                                  {formatCurrency(staffTotal, currency)} total
+                                  {formatCurrency(staffTotal)} total
                                 </CardDescription>
                               </div>
                               <input
@@ -449,7 +446,7 @@ export default function PayoutsPageClient({
                                 >
                                   <div className="flex-1">
                                     <p className="text-sm font-medium">
-                                      {formatCurrency(tip.amount, tip.currency)}
+                                      {formatCurrency(tip.amount)}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
                                       {new Date(tip.createdAt).toLocaleDateString()}
@@ -478,7 +475,7 @@ export default function PayoutsPageClient({
                   <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                     <span className="font-semibold">Total Selected:</span>
                     <span className="text-2xl font-bold">
-                      {formatCurrency(calculateTotal(), currency)}
+                      {formatCurrency(calculateTotal())}
                     </span>
                   </div>
                 </>
@@ -549,8 +546,7 @@ export default function PayoutsPageClient({
                   <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
                   <p className="text-2xl font-bold">
                     {formatCurrency(
-                      payoutBatchDetails.payoutBatch.totalAmount,
-                      payoutBatchDetails.payoutBatch.currency
+                      payoutBatchDetails.payoutBatch.totalAmount
                     )}
                   </p>
                 </div>
@@ -580,7 +576,7 @@ export default function PayoutsPageClient({
                           )}
                         </div>
                         <p className="text-lg font-semibold">
-                          {formatCurrency(item.amount, item.currency)}
+                          {formatCurrency(item.amount)}
                         </p>
                       </div>
                     );

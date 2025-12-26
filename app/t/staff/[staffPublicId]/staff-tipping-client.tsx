@@ -63,11 +63,11 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
   const finalAmount = amount || customAmount;
   const amountInCents = finalAmount ? Math.round(parseFloat(finalAmount) * 100) : 0;
 
-  const formatCurrency = (amountInCents: number, currency: string): string => {
+  const formatCurrency = (amountInCents: number): string => {
     const amountInUnits = amountInCents / 100;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency,
+      currency: 'QAR',
       minimumFractionDigits: 2,
     }).format(amountInUnits);
   };
@@ -91,7 +91,6 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
           branchId: staff.branchId,
           staffProfileId: staff.id,
           amount: amountInCents,
-          currency: company.currency,
           customerNote: note || undefined,
           customerRating: rating || undefined,
         }),
@@ -107,7 +106,6 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
           tipId: result.tipId,
           transactionId: result.transactionId,
           amount: amountInCents,
-          currency: company.currency,
           rating: rating || undefined,
           note: note || undefined,
         });
@@ -158,7 +156,7 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label>Tip Amount ({company.currency})</Label>
+              <Label>Tip Amount (QAR)</Label>
               <div className="grid grid-cols-4 gap-2">
                 {QUICK_AMOUNTS.map((quickAmount) => (
                   <Button
@@ -181,7 +179,7 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
                   step="0.01"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Minimum: 5 {company.currency}
+                  Minimum: 5 QAR
                 </p>
               </div>
             </div>
@@ -224,7 +222,7 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
               <div className="flex items-center justify-between mb-4">
                 <span className="font-medium">Total</span>
                 <span className="text-2xl font-bold">
-                  {finalAmount ? `${finalAmount} ${company.currency}` : '0.00 ' + company.currency}
+                  {finalAmount ? `${finalAmount} QAR` : '0.00 QAR'}
                 </span>
               </div>
               <Button
@@ -260,7 +258,7 @@ export default function StaffTippingPage({ company, staff }: StaffTippingPagePro
               <div className="text-center space-y-2">
                 <p className="text-sm text-muted-foreground">You tipped</p>
                 <p className="text-3xl font-bold">
-                  {formatCurrency(paymentResult.amount, paymentResult.currency)}
+                  {formatCurrency(paymentResult.amount)}
                 </p>
                 <p className="text-lg">
                   to <span className="font-semibold">{staff.displayName}</span>

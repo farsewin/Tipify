@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Filter, X, MapPin, CheckCircle2, XCircle, Settings, Edit, Power, QrCode, Download } from 'lucide-react';
+import { Filter, X, MapPin, CheckCircle2, XCircle, Edit, Power, QrCode, Download, MoreVertical, Users, DollarSign, TrendingUp } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { Input } from '../../_components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../_components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,6 @@ interface Branch {
   id: string;
   name: string;
   location: string | null;
-  timezone: string;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -42,12 +42,11 @@ interface Branch {
 interface BranchesTableProps {
   branches: Branch[];
   companyId: string;
-  currency: string;
   openCreateDialog?: boolean;
   onOpenCreateDialogChange?: (open: boolean) => void;
 }
 
-export default function BranchesTable({ branches, companyId, currency, openCreateDialog = false, onOpenCreateDialogChange }: BranchesTableProps) {
+export default function BranchesTable({ branches, companyId, openCreateDialog = false, onOpenCreateDialogChange }: BranchesTableProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,20 +117,17 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
           companyId: companyId,
           name: formData.get('name') as string,
           location: formData.get('location') as string || null,
-          timezone: formData.get('timezone') as string,
         }),
       });
       
       const result = await res.json();
       
-      // Check for error response
       if (!res.ok) {
         toast.error(result.error || 'Failed to update branch');
         setLoading(false);
         return;
       }
       
-      // Success
       toast.success('Branch updated successfully');
       setIsEditDialogOpen(false);
       setEditingBranch(null);
@@ -160,20 +156,17 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
           companyId: companyId,
           name: formData.get('name') as string,
           location: formData.get('location') as string || undefined,
-          timezone: formData.get('timezone') as string || undefined,
         }),
       });
       
       const result = await res.json();
       
-      // Check for error response
       if (!res.ok) {
         toast.error(result.error || 'Failed to create branch');
         setCreateLoading(false);
         return;
       }
       
-      // Success - reset form before closing dialog
       form.reset();
       toast.success('Branch created successfully!');
       handleCreateDialogChange(false);
@@ -203,14 +196,12 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
       
       const result = await res.json();
       
-      // Check for error response
       if (!res.ok) {
         toast.error(result.error || 'Failed to update branch');
         setToggleLoading(null);
         return;
       }
       
-      // Success
       toast.success(`Branch ${branch.active ? 'deactivated' : 'activated'} successfully`);
       router.refresh();
     } catch (err) {
@@ -279,7 +270,7 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
     const amountInUnits = amount / 100;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency,
+      currency: 'QAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amountInUnits);
@@ -301,45 +292,64 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
   }, [filteredBranches]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Statistics */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Branches</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
+        <Card className="border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Branches</p>
+                <p className="text-2xl font-bold mt-1">{stats.total}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <MapPin className="h-6 w-6 text-primary" />
+              </div>
             </div>
-            <MapPin className="h-8 w-8 text-muted-foreground" />
-          </div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Active</p>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active</p>
+                <p className="text-2xl font-bold text-success mt-1">{stats.active}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-success" />
+              </div>
             </div>
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
-          </div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Inactive</p>
-              <p className="text-2xl font-bold text-gray-500">{stats.inactive}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Staff</p>
+                <p className="text-2xl font-bold mt-1">{stats.totalStaff}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-blue-500" />
+              </div>
             </div>
-            <XCircle className="h-8 w-8 text-gray-500" />
-          </div>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Staff</p>
-              <p className="text-2xl font-bold">{stats.totalStaff}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Tips (30d)</p>
+                <p className="text-2xl font-bold mt-1">{formatCurrency(stats.totalTips)}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-purple-500" />
+              </div>
             </div>
-            <MapPin className="h-8 w-8 text-muted-foreground" />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -394,101 +404,120 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
         </div>
       </div>
 
-      {/* Branches Table */}
-      <div className="rounded-md border">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left text-sm font-medium">Branch</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Location</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Timezone</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Staff</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Tips (30d)</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Revenue (30d)</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-              <th className="px-4 py-3 text-right text-sm font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredBranches.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="px-4 py-8 text-center text-sm text-muted-foreground"
-                >
-                  No branches match the current filters
-                </td>
-              </tr>
-            ) : (
-              filteredBranches.map((branch) => (
-                <tr key={branch.id} className="border-b hover:bg-muted/50">
-                  <td className="px-4 py-3">
-                    <span className="font-medium">{branch.name}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">
-                    {branch.location || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm">{branch.timezone}</td>
-                  <td className="px-4 py-3 text-sm">{branch.staffCount || 0}</td>
-                  <td className="px-4 py-3 text-sm">{branch.tipsCount || 0}</td>
-                  <td className="px-4 py-3 text-sm font-medium">
-                    {branch.totalTips ? formatCurrency(branch.totalTips) : '-'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        branch.active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {branch.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleGenerateQR(branch)}
-                        title="Generate QR Code"
+      {/* Branch Cards */}
+      {filteredBranches.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">No branches found</p>
+            <p className="text-sm text-muted-foreground">
+              {hasActiveFilters 
+                ? 'Try adjusting your filters'
+                : 'Get started by creating your first branch'
+              }
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredBranches.map((branch) => (
+            <Card key={branch.id} className="border-border hover:shadow-lg transition-all group hover:border-primary/50">
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg truncate">{branch.name}</CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          branch.active
+                            ? 'bg-success/10 text-success'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
                       >
-                        <QrCode className="h-4 w-4" />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Settings">
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(branch)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit Branch
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleToggleActive(branch)}
-                            disabled={toggleLoading === branch.id}
-                          >
-                            {toggleLoading === branch.id ? (
-                              <Loader className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Power className="mr-2 h-4 w-4" />
-                            )}
-                            {branch.active ? 'Deactivate' : 'Activate'}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        {branch.active ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEdit(branch)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Branch
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleGenerateQR(branch)}>
+                      <QrCode className="mr-2 h-4 w-4" />
+                      QR Code
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleToggleActive(branch)}
+                      disabled={toggleLoading === branch.id}
+                    >
+                      {toggleLoading === branch.id ? (
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Power className="mr-2 h-4 w-4" />
+                      )}
+                      {branch.active ? 'Deactivate' : 'Activate'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div className="space-y-2 text-sm">
+                  {branch.location && (
+                    <div className="flex items-start gap-2 text-muted-foreground">
+                      <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <span className="break-words">{branch.location}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <Users className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Staff</p>
+                        <p className="text-sm font-semibold">{branch.staffCount || 0}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Tips (30d)</p>
+                      <p className="text-sm font-semibold">{branch.tipsCount || 0}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-border/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Total Revenue (30d)</span>
+                      <span className="text-lg font-bold text-success">
+                        {branch.totalTips ? formatCurrency(branch.totalTips) : 'QAR 0'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -522,15 +551,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
                       maxLength={255}
                     />
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="timezone">Timezone *</Label>
-                    <Input
-                      id="timezone"
-                      name="timezone"
-                      defaultValue={editingBranch.timezone}
-                      required
-                    />
-                  </div>
                 </>
               )}
             </div>
@@ -543,7 +563,7 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading} className="bg-gradient-to-r from-primary to-purple-600">
                 {loading ? (
                   <>
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -572,8 +592,10 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
           <div className="space-y-4 py-4">
             {!qrData ? (
               <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <QrCode className="h-12 w-12 text-muted-foreground" />
-                <Button onClick={handleGenerateQRCode} disabled={qrLoading}>
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <QrCode className="h-10 w-10 text-primary" />
+                </div>
+                <Button onClick={handleGenerateQRCode} disabled={qrLoading} className="bg-gradient-to-r from-primary to-purple-600">
                   {qrLoading ? (
                     <>
                       <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -589,7 +611,7 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex justify-center">
+                <div className="flex justify-center p-4 bg-muted/30 rounded-lg">
                   <Image
                     src={qrData.dataUrl}
                     alt={`QR Code for ${qrCodeBranch?.name || 'Branch'}`}
@@ -599,7 +621,7 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
                   />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground break-all text-center">
+                  <p className="text-xs text-muted-foreground break-all text-center bg-muted/30 p-2 rounded">
                     {qrData.url}
                   </p>
                   <div className="flex gap-2">
@@ -670,20 +692,6 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
                   maxLength={255}
                 />
               </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="create-timezone">Timezone</Label>
-                <Input
-                  id="create-timezone"
-                  name="timezone"
-                  type="text"
-                  placeholder="UTC"
-                  defaultValue="UTC"
-                />
-                <p className="text-xs text-muted-foreground">
-                  IANA timezone (e.g., America/New_York, Europe/London)
-                </p>
-              </div>
             </div>
             <DialogFooter>
               <Button
@@ -694,7 +702,7 @@ export default function BranchesTable({ branches, companyId, currency, openCreat
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createLoading}>
+              <Button type="submit" disabled={createLoading} className="bg-gradient-to-r from-primary to-purple-600">
                 {createLoading ? (
                   <>
                     <Loader className="mr-2 h-4 w-4 animate-spin" />

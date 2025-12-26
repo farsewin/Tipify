@@ -51,10 +51,10 @@ async function getBillingData() {
   }
 }
 
-function formatCurrency(amount: number, currency: string): string {
+function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency,
+    currency: 'QAR',
     minimumFractionDigits: 2,
   }).format(amount);
 }
@@ -123,14 +123,14 @@ export default async function BillingPage() {
                   </span>
                 </div>
                 <span className="text-sm font-medium">
-                  {formatCurrency(pricePerBranch, company.currency)} each
+                  {formatCurrency(pricePerBranch)} each
                 </span>
               </div>
               <div className="pt-2 border-t">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">Total</span>
                   <span className="text-2xl font-bold">
-                    {formatCurrency(totalMonthlyCost, company.currency)}
+                    {formatCurrency(totalMonthlyCost)}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">per month</p>
@@ -151,7 +151,7 @@ export default async function BillingPage() {
               <div>
                 <p className="font-medium">Plan: {company.subscriptionPlan}</p>
                 <p className="text-sm text-muted-foreground">
-                  {formatCurrency(pricePerBranch, company.currency)} per branch per month
+                  {formatCurrency(pricePerBranch)} per branch per month
                 </p>
               </div>
               <Badge variant="outline">Active</Badge>

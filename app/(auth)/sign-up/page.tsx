@@ -51,7 +51,6 @@ export default function SignUp() {
           companyName: formData.get('company_name') as string,
           companyLegalName: formData.get('company_legal_name') as string || undefined,
           country: formData.get('country') as string,
-          currency: formData.get('currency') as string,
         }),
       });
 
@@ -151,29 +150,16 @@ export default function SignUp() {
                   placeholder="Acme Restaurant LLC"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="country">Country Code</Label>
-                  <Input
-                    id="country"
-                    name="country"
-                    type="text"
-                    placeholder="QA"
-                    maxLength={2}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="currency">Currency</Label>
-                  <Input
-                    id="currency"
-                    name="currency"
-                    type="text"
-                    placeholder="QAR"
-                    maxLength={3}
-                    required
-                  />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="country">Country Code</Label>
+                <Input
+                  id="country"
+                  name="country"
+                  type="text"
+                  placeholder="QA"
+                  maxLength={2}
+                  required
+                />
               </div>
             </div>
 

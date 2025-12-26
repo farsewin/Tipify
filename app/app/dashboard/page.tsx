@@ -16,6 +16,7 @@ import {
 } from '../../_components/ui/card';
 import { Separator } from '../../_components/ui/separator';
 import { Building2, Users, DollarSign, TrendingUp, Calendar, Award, Activity } from 'lucide-react';
+import DashboardCharts from './_components/dashboard-charts';
 
 async function getCurrentUserCompany() {
   const cookieStore = await cookies();
@@ -43,14 +44,10 @@ async function getCurrentUserCompany() {
     // Get tips for last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentTips = await getTips(
-      company.id,
-      undefined,
-      undefined,
-      undefined,
-      'SUCCEEDED',
-      thirtyDaysAgo
-    );
+    const recentTips = await getTips(company.id, {
+      paymentStatus: 'SUCCEEDED',
+      startDate: thirtyDaysAgo,
+    });
 
     const totalTipsAmount = recentTips.reduce((sum, tip) => sum + tip.amount, 0);
     const pendingTipsCount = recentTips.filter(
@@ -84,12 +81,13 @@ export default async function DashboardPage() {
 
   const { company, user, branches, staff, recentTips, totalTipsAmount, pendingTipsCount } = result;
 
-  function formatCurrency(amount: number, currency: string): string {
+  function formatCurrency(amount: number): string {
     const amountInUnits = amount / 100;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
+      currency: 'QAR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amountInUnits);
   }
 
@@ -108,7 +106,7 @@ export default async function DashboardPage() {
   const thisWeekTips = recentTips.filter(tip => new Date(tip.createdAt) >= weekAgo);
   const thisWeekAmount = thisWeekTips.reduce((sum, tip) => sum + tip.amount, 0);
 
-  // Last 7 days for chart
+  // Last 7 days for daily chart
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - i));
@@ -116,7 +114,7 @@ export default async function DashboardPage() {
     return date;
   });
 
-  const dailyTips = last7Days.map(date => {
+  const dailyTipsData = last7Days.map(date => {
     const nextDay = new Date(date);
     nextDay.setDate(nextDay.getDate() + 1);
     
@@ -128,14 +126,37 @@ export default async function DashboardPage() {
     const amount = dayTips.reduce((sum, tip) => sum + tip.amount, 0);
     
     return {
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      amount: amount / 100,
+      name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      tips: amount / 100,
       count: dayTips.length
     };
   });
 
-  // Get max amount for chart scaling
-  const maxAmount = Math.max(...dailyTips.map(d => d.amount), 1);
+  // Last 4 weeks for weekly chart
+  const last4Weeks = Array.from({ length: 4 }, (_, i) => {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - ((3 - i) * 7));
+    weekStart.setHours(0, 0, 0, 0);
+    return weekStart;
+  });
+
+  const weeklyTipsData = last4Weeks.map((weekStart, index) => {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    
+    const weekTips = recentTips.filter(tip => {
+      const tipDate = new Date(tip.createdAt);
+      return tipDate >= weekStart && tipDate < weekEnd;
+    });
+    
+    const amount = weekTips.reduce((sum, tip) => sum + tip.amount, 0);
+    
+    return {
+      name: `Week ${index + 1}`,
+      tips: amount / 100,
+      count: weekTips.length
+    };
+  });
 
   // Recent tips (last 5)
   const recentTipsList = [...recentTips]
@@ -150,94 +171,80 @@ export default async function DashboardPage() {
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Tips (30d)</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(totalTipsAmount, company.currency)}
+              {formatCurrency(totalTipsAmount)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               {recentTips.length} tip{recentTips.length !== 1 ? 's' : ''} received
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Tips</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-success" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(todaysTipsAmount, company.currency)}
+              {formatCurrency(todaysTipsAmount)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               {todaysTips.length} tip{todaysTips.length !== 1 ? 's' : ''} today
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Tips</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-warning" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{pendingTipsCount}</div>
-            <p className="text-xs text-muted-foreground">Awaiting distribution</p>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting distribution</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Tip</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
+            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <Award className="h-5 w-5 text-purple-500" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(averageTipAmount, company.currency)}
+              {formatCurrency(averageTipAmount)}
             </div>
-            <p className="text-xs text-muted-foreground">Per transaction</p>
+            <p className="text-xs text-muted-foreground mt-1">Per transaction</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts and Activity */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Tips Trend Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tips This Week</CardTitle>
-            <CardDescription>Daily tip amounts for the last 7 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {dailyTips.map((day, index) => (
-                <div key={index} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{day.date}</span>
-                    <span className="font-medium">
-                      {formatCurrency(day.amount * 100, company.currency)} ({day.count})
-                    </span>
-                  </div>
-                  <div className="w-full bg-secondary rounded-full h-2">
-                    <div
-                      className="bg-primary rounded-full h-2 transition-all"
-                      style={{ width: `${(day.amount / maxAmount) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Charts */}
+      <DashboardCharts
+        dailyTipsData={dailyTipsData}
+        weeklyTipsData={weeklyTipsData}
+      />
 
+      {/* Recent Activity and Organization Stats */}
+      <div className="grid lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Recent Tips</CardTitle>
             <CardDescription>Last 5 tips received</CardDescription>
@@ -252,7 +259,7 @@ export default async function DashboardPage() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-sm font-medium">
-                          {formatCurrency(tip.amount, company.currency)}
+                          {formatCurrency(tip.amount)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(tip.createdAt).toLocaleDateString('en-US', {
@@ -266,8 +273,8 @@ export default async function DashboardPage() {
                       <div className="text-right">
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           tip.distributionStatus === 'PENDING' 
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            ? 'bg-warning/10 text-warning'
+                            : 'bg-success/10 text-success'
                         }`}>
                           {tip.distributionStatus}
                         </span>
@@ -280,66 +287,61 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Organization Stats */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Branches</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{branches.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {branches.length === 1 ? 'Branch' : 'Branches'} active
-            </p>
-          </CardContent>
-        </Card>
+        {/* Organization Quick Stats */}
+        <div className="space-y-4">
+          <Card className="border-border hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Branches</CardTitle>
+              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <Building2 className="h-5 w-5 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{branches.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {branches.filter(b => b.active).length} active
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Staff Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{staff.length}</div>
-            <p className="text-xs text-muted-foreground">Active staff</p>
-          </CardContent>
-        </Card>
+          <Card className="border-border hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Staff Members</CardTitle>
+              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-purple-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{staff.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {staff.filter(s => s.active).length} active
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Week</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(thisWeekAmount, company.currency)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {thisWeekTips.length} tips in 7 days
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Daily Average</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(totalTipsAmount / 30, company.currency)}
-            </div>
-            <p className="text-xs text-muted-foreground">Over 30 days</p>
-          </CardContent>
-        </Card>
+          <Card className="border-border hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">This Week</CardTitle>
+              <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                <Activity className="h-5 w-5 text-success" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(thisWeekAmount)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {thisWeekTips.length} tips in 7 days
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Bottom Section */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="border-border">
           <CardHeader>
             <CardTitle>Company</CardTitle>
             <CardDescription>{company.name}</CardDescription>
@@ -353,14 +355,11 @@ export default async function DashboardPage() {
               <p className="text-sm">
                 <span className="font-medium">Plan:</span> {company.subscriptionPlan}
               </p>
-              <p className="text-sm">
-                <span className="font-medium">Currency:</span> {company.currency}
-              </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
             <CardDescription>Common tasks</CardDescription>
@@ -389,7 +388,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border">
           <CardHeader>
             <CardTitle>Subscription</CardTitle>
             <CardDescription>Billing information</CardDescription>

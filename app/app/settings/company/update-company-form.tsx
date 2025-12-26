@@ -20,7 +20,6 @@ export default function UpdateCompanyForm({ company }: UpdateCompanyFormProps) {
     name: company.name,
     legalName: company.legalName || '',
     country: company.country,
-    currency: company.currency,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +34,6 @@ export default function UpdateCompanyForm({ company }: UpdateCompanyFormProps) {
           name: formData.name,
           legalName: formData.legalName || undefined,
           country: formData.country,
-          currency: formData.currency,
         }),
       });
 
@@ -78,32 +76,17 @@ export default function UpdateCompanyForm({ company }: UpdateCompanyFormProps) {
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="country">Country Code *</Label>
-          <Input
-            id="country"
-            value={formData.country}
-            onChange={(e) => setFormData({ ...formData, country: e.target.value.toUpperCase() })}
-            required
-            maxLength={2}
-            placeholder="QA"
-          />
-          <p className="text-xs text-muted-foreground">ISO 3166-1 alpha-2 code (e.g., QA, US)</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="currency">Currency *</Label>
-          <Input
-            id="currency"
-            value={formData.currency}
-            onChange={(e) => setFormData({ ...formData, currency: e.target.value.toUpperCase() })}
-            required
-            maxLength={3}
-            placeholder="QAR"
-          />
-          <p className="text-xs text-muted-foreground">ISO 4217 code (e.g., QAR, USD)</p>
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="country">Country Code *</Label>
+        <Input
+          id="country"
+          value={formData.country}
+          onChange={(e) => setFormData({ ...formData, country: e.target.value.toUpperCase() })}
+          required
+          maxLength={2}
+          placeholder="QA"
+        />
+        <p className="text-xs text-muted-foreground">ISO 3166-1 alpha-2 code (e.g., QA)</p>
       </div>
 
       <Button type="submit" disabled={loading}>
