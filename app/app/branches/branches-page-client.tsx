@@ -42,7 +42,7 @@ export default function BranchesPageClient({ branches, companyId }: BranchesPage
         </div>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 transition-opacity"
+          className="bg-primary hover:bg-primary/90"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Branch
@@ -62,7 +62,7 @@ export default function BranchesPageClient({ branches, companyId }: BranchesPage
             </CardDescription>
             <Button 
               onClick={() => setIsCreateDialogOpen(true)}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 transition-opacity"
+              className="bg-primary hover:bg-primary/90"
             >
               <Plus className="mr-2 h-4 w-4" />
               Create First Branch

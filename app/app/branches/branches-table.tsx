@@ -212,10 +212,33 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
     }
   };
 
-  const handleGenerateQR = (branch: Branch) => {
+  const handleGenerateQR = async (branch: Branch) => {
     setQrCodeBranch(branch);
     setQrData(null);
     setIsQRDialogOpen(true);
+    
+    // Automatically generate QR code when dialog opens
+    setQrLoading(true);
+    try {
+      const res = await fetch(`/api/branches/${branch.id}/qr?companyId=${companyId}`);
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.error || 'Failed to generate QR code');
+        return;
+      }
+      
+      if (result.url && result.dataUrl && result.svg) {
+        setQrData(result);
+      } else {
+        toast.error('Invalid QR code response');
+      }
+    } catch (error) {
+      console.error('QR generation error:', error);
+      toast.error('Failed to generate QR code');
+    } finally {
+      setQrLoading(false);
+    }
   };
 
   const handleGenerateQRCode = async () => {
@@ -233,7 +256,6 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
       
       if (result.url && result.dataUrl && result.svg) {
         setQrData(result);
-        toast.success('QR code generated!');
       } else {
         toast.error('Invalid QR code response');
       }
@@ -424,7 +446,7 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
             <Card key={branch.id} className="border-border hover:shadow-lg transition-all group hover:border-primary/50">
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
                     <MapPin className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -442,39 +464,48 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
                     </div>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(branch)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Branch
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleGenerateQR(branch)}>
-                      <QrCode className="mr-2 h-4 w-4" />
-                      QR Code
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => handleToggleActive(branch)}
-                      disabled={toggleLoading === branch.id}
-                    >
-                      {toggleLoading === branch.id ? (
-                        <Loader className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Power className="mr-2 h-4 w-4" />
-                      )}
-                      {branch.active ? 'Deactivate' : 'Activate'}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                
+                {/* Action buttons - QR code and options */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleGenerateQR(branch)}
+                    title="Generate QR Code"
+                  >
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEdit(branch)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Branch
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleToggleActive(branch)}
+                        disabled={toggleLoading === branch.id}
+                      >
+                        {toggleLoading === branch.id ? (
+                          <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Power className="mr-2 h-4 w-4" />
+                        )}
+                        {branch.active ? 'Deactivate' : 'Activate'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </CardHeader>
 
               <CardContent className="space-y-4">
@@ -563,7 +594,7 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading} className="bg-gradient-to-r from-primary to-purple-600">
+              <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90">
                 {loading ? (
                   <>
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -579,37 +610,36 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
       </Dialog>
 
       {/* QR Code Dialog */}
-      <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
+      <Dialog 
+        open={isQRDialogOpen} 
+        onOpenChange={(open) => {
+          setIsQRDialogOpen(open);
+          if (!open) {
+            // Reset state when dialog closes
+            setQrCodeBranch(null);
+            setQrData(null);
+            setQrLoading(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {qrCodeBranch ? `QR Code - ${qrCodeBranch.name}` : 'Generate QR Code'}
+              {qrCodeBranch ? `QR Code - ${qrCodeBranch.name}` : 'QR Code'}
             </DialogTitle>
             <DialogDescription>
-              Generate and download QR code for this branch
+              Scan this QR code to access the branch tipping page
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {!qrData ? (
+            {qrLoading ? (
               <div className="flex flex-col items-center justify-center py-8 space-y-4">
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <QrCode className="h-10 w-10 text-primary" />
+                  <Loader className="h-10 w-10 text-primary animate-spin" />
                 </div>
-                <Button onClick={handleGenerateQRCode} disabled={qrLoading} className="bg-gradient-to-r from-primary to-purple-600">
-                  {qrLoading ? (
-                    <>
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <QrCode className="mr-2 h-4 w-4" />
-                      Generate QR Code
-                    </>
-                  )}
-                </Button>
+                <p className="text-sm text-muted-foreground">Generating QR code...</p>
               </div>
-            ) : (
+            ) : qrData ? (
               <div className="space-y-4">
                 <div className="flex justify-center p-4 bg-muted/30 rounded-lg">
                   <Image
@@ -647,12 +677,36 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setQrData(null)}
+                    onClick={handleGenerateQRCode}
+                    disabled={qrLoading}
                     className="w-full"
                   >
-                    Generate New
+                    {qrLoading ? (
+                      <>
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        Regenerating...
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Regenerate QR Code
+                      </>
+                    )}
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                <div className="w-20 h-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                  <QrCode className="h-10 w-10 text-destructive" />
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Failed to generate QR code
+                </p>
+                <Button onClick={handleGenerateQRCode} className="bg-primary hover:bg-primary/90">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Try Again
+                </Button>
               </div>
             )}
           </div>
@@ -702,7 +756,7 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createLoading} className="bg-gradient-to-r from-primary to-purple-600">
+              <Button type="submit" disabled={createLoading} className="bg-primary hover:bg-primary/90">
                 {createLoading ? (
                   <>
                     <Loader className="mr-2 h-4 w-4 animate-spin" />

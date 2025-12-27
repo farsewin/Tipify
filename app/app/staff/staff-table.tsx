@@ -232,10 +232,33 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
     }
   };
 
-  const handleGenerateQR = (member: StaffMember) => {
+  const handleGenerateQR = async (member: StaffMember) => {
     setQrCodeStaff(member);
     setQrData(null);
     setIsQRDialogOpen(true);
+    
+    // Automatically generate QR code when dialog opens
+    setQrLoading(true);
+    try {
+      const res = await fetch(`/api/staff/${member.id}/qr?companyId=${companyId}`);
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.error || 'Failed to generate QR code');
+        return;
+      }
+
+      if (result.url && result.dataUrl && result.svg) {
+        setQrData(result);
+      } else {
+        toast.error('Invalid QR code response');
+      }
+    } catch (error) {
+      console.error('QR generation error:', error);
+      toast.error('Failed to generate QR code');
+    } finally {
+      setQrLoading(false);
+    }
   };
 
   const handleGenerateQRCode = async () => {
@@ -248,13 +271,11 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
 
       if (!res.ok) {
         toast.error(result.error || 'Failed to generate QR code');
-        setQrLoading(false);
         return;
       }
 
       if (result.url && result.dataUrl && result.svg) {
         setQrData(result);
-        toast.success('QR code generated!');
       } else {
         toast.error('Invalid QR code response');
       }
@@ -625,37 +646,38 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
       </Dialog>
 
       {/* QR Code Dialog */}
-      <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
+      <Dialog 
+        open={isQRDialogOpen} 
+        onOpenChange={(open) => {
+          setIsQRDialogOpen(open);
+          if (!open) {
+            // Reset state when dialog closes
+            setQrCodeStaff(null);
+            setQrData(null);
+            setQrLoading(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {qrCodeStaff ? `QR Code - ${qrCodeStaff.displayName}` : 'Generate QR Code'}
+              {qrCodeStaff ? `QR Code - ${qrCodeStaff.displayName}` : 'QR Code'}
             </DialogTitle>
             <DialogDescription>
-              Generate and download QR code for this staff member
+              Scan this QR code to access the staff tipping page
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {!qrData ? (
+            {qrLoading ? (
               <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <QrCode className="h-12 w-12 text-muted-foreground" />
-                <Button onClick={handleGenerateQRCode} disabled={qrLoading}>
-                  {qrLoading ? (
-                    <>
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <QrCode className="mr-2 h-4 w-4" />
-                      Generate QR Code
-                    </>
-                  )}
-                </Button>
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Loader className="h-10 w-10 text-primary animate-spin" />
+                </div>
+                <p className="text-sm text-muted-foreground">Generating QR code...</p>
               </div>
-            ) : (
+            ) : qrData ? (
               <div className="space-y-4">
-                <div className="flex justify-center">
+                <div className="flex justify-center p-4 bg-muted/30 rounded-lg">
                   <Image
                     src={qrData.dataUrl}
                     alt={`QR Code for ${qrCodeStaff?.displayName || 'Staff'}`}
@@ -665,7 +687,7 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
                   />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground break-all text-center">
+                  <p className="text-xs text-muted-foreground break-all text-center bg-muted/30 p-2 rounded">
                     {qrData.url}
                   </p>
                   <div className="flex gap-2">
@@ -691,12 +713,36 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setQrData(null)}
+                    onClick={handleGenerateQRCode}
+                    disabled={qrLoading}
                     className="w-full"
                   >
-                    Generate New
+                    {qrLoading ? (
+                      <>
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        Regenerating...
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Regenerate QR Code
+                      </>
+                    )}
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                <div className="w-20 h-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                  <QrCode className="h-10 w-10 text-destructive" />
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Failed to generate QR code
+                </p>
+                <Button onClick={handleGenerateQRCode} className="bg-primary hover:bg-primary/90">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Try Again
+                </Button>
               </div>
             )}
           </div>
