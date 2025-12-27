@@ -40,3 +40,19 @@ export async function getBranches(companyId: string, activeOnly?: boolean) {
   }
 }
 
+export async function getBranchesWithMetrics(companyId: string, startDate: Date) {
+  try {
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
+
+    const branchesRepository = getBranchesRepository();
+    return branchesRepository.getBranchesWithMetrics(companyId, startDate);
+  } catch (err) {
+    if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
+      redirect('/sign-in');
+    }
+    console.error('Get branches with metrics error:', err);
+    throw err;
+  }
+}
+

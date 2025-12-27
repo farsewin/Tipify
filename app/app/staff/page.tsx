@@ -4,7 +4,6 @@ import { SESSION_COOKIE } from '@/config';
 import { getCompany } from '../companies/actions';
 import { getBranches } from '../branches/actions';
 import { getStaff } from './actions';
-import { getAuthenticationService } from '@/src/service-locator';
 import { getUserCompanies } from '@/src/shared/helpers/access-control';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
 import {

@@ -4,7 +4,7 @@ import { SESSION_COOKIE } from '@/config';
 import { getCompany } from '../companies/actions';
 import { getBranches } from '../branches/actions';
 import { getStaff } from '../staff/actions';
-import { getTips } from './actions';
+import { getTipsWithRelations } from './actions';
 import { getUserCompanies } from '@/src/shared/helpers/access-control';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
 import TipsPageClient from './tips-page-client';
@@ -24,9 +24,12 @@ async function getCompanyData() {
     }
 
     const company = await getCompany(companies[0].companyId);
+    // Get tips with relations in a single optimized query (no N+1!)
+    const tips = await getTipsWithRelations(company.id);
+    
+    // Still need branches and staff for filters, but these are smaller datasets
     const branches = await getBranches(company.id, true);
     const staff = await getStaff(company.id, undefined, true);
-    const tips = await getTips(company.id);
 
     return { company, branches, staff, tips };
   } catch (err) {
@@ -49,11 +52,7 @@ function formatCurrency(amount: number): string {
 export default async function TipsPage() {
   const { company, branches, staff, tips } = await getCompanyData();
 
-  // Create lookup maps
-  const branchMap = new Map(branches.map((b) => [b.id, b.name]));
-  const staffMap = new Map(staff.map((s) => [s.id, s.displayName]));
-
-  // Calculate stats
+  // Calculate stats - tips already have branchName and staffName from the query
   const totalAmount = tips.reduce((sum, tip) => sum + tip.amount, 0);
   const pendingTips = tips.filter(tip => tip.distributionStatus === 'PENDING' && tip.paymentStatus === 'SUCCEEDED');
   const paidTips = tips.filter(tip => tip.distributionStatus === 'PAID');
@@ -65,8 +64,6 @@ export default async function TipsPage() {
       companyId={company.id}
       tips={tips.map((tip) => ({
         ...tip,
-        branchName: branchMap.get(tip.branchId) || 'Unknown',
-        staffName: staffMap.get(tip.staffProfileId) || 'Unknown',
         formattedAmount: formatCurrency(tip.amount),
       }))}
       branches={branches}

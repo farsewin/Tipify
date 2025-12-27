@@ -45,4 +45,30 @@ export async function getTips(
   }
 }
 
+export async function getTipsWithRelations(
+  companyId: string,
+  filters?: {
+    branchId?: string;
+    staffProfileId?: string;
+    distributionStatus?: 'PENDING' | 'PAID';
+    paymentStatus?: 'SUCCEEDED' | 'PENDING' | 'FAILED';
+    startDate?: Date;
+    endDate?: Date;
+  }
+) {
+  try {
+    const sessionId = await getSessionId();
+    await validateCompanyAccess(sessionId, companyId);
+
+    const tipsRepository = getTipsRepository();
+    return tipsRepository.getTipsWithRelations(companyId, filters || {});
+  } catch (err) {
+    if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
+      redirect('/sign-in');
+    }
+    console.error('Get tips with relations error:', err);
+    throw err;
+  }
+}
+
 
