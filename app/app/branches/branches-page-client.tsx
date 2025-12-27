@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from '../../_components/ui/button';
-import { Plus, MapPin } from 'lucide-react';
+import { Plus, MapPin, Loader2 } from 'lucide-react';
 import BranchesTable from './branches-table';
 import {
   Card,
@@ -30,9 +30,18 @@ interface BranchesPageClientProps {
 
 export default function BranchesPageClient({ branches, companyId }: BranchesPageClientProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 relative">
+      {isPending && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Refreshing...</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -74,6 +83,7 @@ export default function BranchesPageClient({ branches, companyId }: BranchesPage
           companyId={companyId}
           isCreateDialogOpen={isCreateDialogOpen}
           onCreateDialogChange={setIsCreateDialogOpen}
+          startTransition={startTransition}
         />
       )}
     </div>

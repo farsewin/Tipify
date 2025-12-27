@@ -1,5 +1,6 @@
 'use client';
 
+import { useTransition } from 'react';
 import {
   Card,
   CardContent,
@@ -9,7 +10,7 @@ import {
 } from '../../_components/ui/card';
 import { Separator } from '../../_components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../_components/ui/tabs';
-import { Building2, User, Users } from 'lucide-react';
+import { Building2, User, Users, Loader2 } from 'lucide-react';
 import UpdateCompanyForm from './company/update-company-form';
 import UpdateAccountForm from './account/update-account-form';
 import UpdatePasswordForm from './account/update-password-form';
@@ -22,8 +23,18 @@ interface SettingsPageClientProps {
 }
 
 export default function SettingsPageClient({ company, user }: SettingsPageClientProps) {
+  const [isPending, startTransition] = useTransition();
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-4xl relative">
+      {isPending && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Refreshing...</p>
+          </div>
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Manage your account and company settings</p>
@@ -56,7 +67,7 @@ export default function SettingsPageClient({ company, user }: SettingsPageClient
             </CardHeader>
             <Separator />
             <CardContent className="p-6">
-              <UpdateCompanyForm company={company} />
+              <UpdateCompanyForm company={company} startTransition={startTransition} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -72,7 +83,7 @@ export default function SettingsPageClient({ company, user }: SettingsPageClient
             </CardHeader>
             <Separator />
             <CardContent className="p-6">
-              <UpdateAccountForm user={user} />
+              <UpdateAccountForm user={user} startTransition={startTransition} />
             </CardContent>
           </Card>
 
@@ -85,7 +96,7 @@ export default function SettingsPageClient({ company, user }: SettingsPageClient
             </CardHeader>
             <Separator />
             <CardContent className="p-6">
-              <UpdatePasswordForm />
+              <UpdatePasswordForm startTransition={startTransition} />
             </CardContent>
           </Card>
         </TabsContent>

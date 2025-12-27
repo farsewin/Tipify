@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
@@ -11,9 +11,12 @@ import type { Company } from '@/src/models/company.model';
 
 interface UpdateCompanyFormProps {
   company: Company;
+  startTransition?: (callback: () => void) => void;
 }
 
-export default function UpdateCompanyForm({ company }: UpdateCompanyFormProps) {
+export default function UpdateCompanyForm({ company, startTransition: propStartTransition }: UpdateCompanyFormProps) {
+  const [_, localStartTransition] = useTransition();
+  const startTransition = propStartTransition || localStartTransition;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,7 +46,9 @@ export default function UpdateCompanyForm({ company }: UpdateCompanyFormProps) {
         toast.error(result.error || 'Failed to update company settings');
       } else if (result.success) {
         toast.success('Company settings updated successfully!');
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');

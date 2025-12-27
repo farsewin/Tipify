@@ -33,6 +33,7 @@ interface EditBranchDialogProps {
   onOpenChange: (open: boolean) => void;
   branch: Branch | null;
   companyId: string;
+  startTransition: (callback: () => void) => void;
 }
 
 export default function EditBranchDialog({
@@ -40,6 +41,7 @@ export default function EditBranchDialog({
   onOpenChange,
   branch,
   companyId,
+  startTransition,
 }: EditBranchDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -72,7 +74,9 @@ export default function EditBranchDialog({
 
       toast.success('Branch updated successfully');
       onOpenChange(false);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Update error:', err);
       toast.error('Failed to update branch');

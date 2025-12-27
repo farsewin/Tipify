@@ -45,6 +45,7 @@ interface CreatePayoutDialogProps {
   companyId: string;
   branches: Branch[];
   staff: Staff[];
+  startTransition: (callback: () => void) => void;
 }
 
 function formatCurrency(amount: number): string {
@@ -62,6 +63,7 @@ export default function CreatePayoutDialog({
   companyId,
   branches,
   staff,
+  startTransition,
 }: CreatePayoutDialogProps) {
   const router = useRouter();
   
@@ -196,7 +198,9 @@ export default function CreatePayoutDialog({
       } else if (result.success) {
         toast.success('Payout batch created successfully!');
         onOpenChange(false);
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');

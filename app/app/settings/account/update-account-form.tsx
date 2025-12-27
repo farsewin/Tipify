@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
@@ -11,9 +11,12 @@ import type { User } from '@/src/models/user.model';
 
 interface UpdateAccountFormProps {
   user: User;
+  startTransition?: (callback: () => void) => void;
 }
 
-export default function UpdateAccountForm({ user }: UpdateAccountFormProps) {
+export default function UpdateAccountForm({ user, startTransition: propStartTransition }: UpdateAccountFormProps) {
+  const [_, localStartTransition] = useTransition();
+  const startTransition = propStartTransition || localStartTransition;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -41,7 +44,9 @@ export default function UpdateAccountForm({ user }: UpdateAccountFormProps) {
         toast.error(result.error || 'Failed to update account settings');
       } else if (result.success) {
         toast.success('Account settings updated successfully!');
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');

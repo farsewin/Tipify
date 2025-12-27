@@ -33,6 +33,7 @@ interface PayoutDetailsDialogProps {
   batchId: string | null;
   companyId: string;
   staff: Staff[];
+  startTransition: (callback: () => void) => void;
 }
 
 interface PayoutItem {
@@ -67,6 +68,7 @@ export default function PayoutDetailsDialog({
   batchId,
   companyId,
   staff,
+  startTransition,
 }: PayoutDetailsDialogProps) {
   const router = useRouter();
   const [payoutBatchDetails, setPayoutBatchDetails] = useState<PayoutBatchDetails | null>(null);
@@ -130,7 +132,9 @@ export default function PayoutDetailsDialog({
       } else if (result.success) {
         toast.success('Payout batch marked as completed!');
         onOpenChange(false);
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');

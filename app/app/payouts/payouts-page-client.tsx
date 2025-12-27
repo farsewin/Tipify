@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useTransition } from 'react';
 import {
   Plus,
   CheckCircle2,
@@ -10,6 +10,7 @@ import {
   Filter,
   X,
   Download,
+  Loader2,
 } from 'lucide-react';
 import {
   Card,
@@ -89,6 +90,7 @@ export default function PayoutsPageClient({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -167,7 +169,15 @@ export default function PayoutsPageClient({
     toast.success('Batch exported successfully');
   };
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 relative">
+      {isPending && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Refreshing...</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -410,6 +420,7 @@ export default function PayoutsPageClient({
         companyId={companyId}
         branches={branches}
         staff={staff}
+        startTransition={startTransition}
       />
 
       <PayoutDetailsDialog
@@ -418,6 +429,7 @@ export default function PayoutsPageClient({
         batchId={selectedBatchId}
         companyId={companyId}
         staff={staff}
+        startTransition={startTransition}
       />
     </div>
   );

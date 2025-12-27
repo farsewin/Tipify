@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import {
   Card,
   CardContent,
@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from '../../_components/ui/card';
 import { Button } from '../../_components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import StaffTable from './staff-table';
 
 interface StaffMember {
@@ -31,9 +31,18 @@ interface StaffPageClientProps {
 
 export default function StaffPageClient({ staff, branches, companyId }: StaffPageClientProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 relative">
+      {isPending && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Refreshing...</p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Staff</h1>
@@ -75,6 +84,7 @@ export default function StaffPageClient({ staff, branches, companyId }: StaffPag
               companyId={companyId}
               isCreateDialogOpen={isCreateDialogOpen}
               onCreateDialogChange={setIsCreateDialogOpen}
+              startTransition={startTransition}
             />
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { Button } from '../../../_components/ui/button';
@@ -8,7 +8,13 @@ import { Input } from '../../../_components/ui/input';
 import { Label } from '../../../_components/ui/label';
 import { toast } from 'sonner';
 
-export default function UpdatePasswordForm() {
+interface UpdatePasswordFormProps {
+  startTransition?: (callback: () => void) => void;
+}
+
+export default function UpdatePasswordForm({ startTransition: propStartTransition }: UpdatePasswordFormProps) {
+  const [_, localStartTransition] = useTransition();
+  const startTransition = propStartTransition || localStartTransition;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -54,7 +60,9 @@ export default function UpdatePasswordForm() {
           newPassword: '',
           confirmPassword: '',
         });
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');

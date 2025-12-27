@@ -37,13 +37,15 @@ interface BranchesTableProps {
   companyId: string;
   isCreateDialogOpen: boolean;
   onCreateDialogChange: (open: boolean) => void;
+  startTransition: (callback: () => void) => void;
 }
 
 export default function BranchesTable({
   branches,
   companyId,
   isCreateDialogOpen,
-  onCreateDialogChange
+  onCreateDialogChange,
+  startTransition
 }: BranchesTableProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -99,7 +101,9 @@ export default function BranchesTable({
       }
 
       toast.success(`Branch ${branch.active ? 'deactivated' : 'activated'} successfully`);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Toggle error:', err);
       toast.error('Failed to update branch');
@@ -374,6 +378,7 @@ export default function BranchesTable({
         open={isCreateDialogOpen}
         onOpenChange={onCreateDialogChange}
         companyId={companyId}
+        startTransition={startTransition}
       />
 
       <EditBranchDialog
@@ -381,6 +386,7 @@ export default function BranchesTable({
         onOpenChange={(open) => !open && setEditingBranch(null)}
         branch={editingBranch}
         companyId={companyId}
+        startTransition={startTransition}
       />
       <QRCodeDialog
         open={!!qrCodeBranch}

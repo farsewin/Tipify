@@ -47,9 +47,10 @@ interface StaffTableProps {
   companyId: string;
   isCreateDialogOpen: boolean;
   onCreateDialogChange: (open: boolean) => void;
+  startTransition: (callback: () => void) => void;
 }
 
-export default function StaffTable({ staff, branches, companyId, isCreateDialogOpen, onCreateDialogChange }: StaffTableProps) {
+export default function StaffTable({ staff, branches, companyId, isCreateDialogOpen, onCreateDialogChange, startTransition }: StaffTableProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [branchFilter, setBranchFilter] = useState<string | null>(null);
@@ -141,7 +142,9 @@ export default function StaffTable({ staff, branches, companyId, isCreateDialogO
       toast.success('Staff profile updated successfully');
       setIsEditDialogOpen(false);
       setEditingStaff(null);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Update error:', err);
       toast.error('Failed to update staff');
@@ -184,7 +187,9 @@ export default function StaffTable({ staff, branches, companyId, isCreateDialogO
       form.reset();
       toast.success('Staff profile created successfully!');
       onCreateDialogChange(false);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Create error:', err);
       toast.error('Failed to create staff');
@@ -217,7 +222,9 @@ export default function StaffTable({ staff, branches, companyId, isCreateDialogO
       }
 
       toast.success(`Staff profile ${member.active ? 'deactivated' : 'activated'} successfully`);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Toggle error:', err);
       toast.error('Failed to update staff');
@@ -562,6 +569,7 @@ export default function StaffTable({ staff, branches, companyId, isCreateDialogO
         staff={editingStaff}
         companyId={companyId}
         branches={branches}
+        startTransition={startTransition}
       />
 
       {/* QR Code Dialog */}
@@ -579,6 +587,7 @@ export default function StaffTable({ staff, branches, companyId, isCreateDialogO
         onOpenChange={onCreateDialogChange}
         companyId={companyId}
         branches={branches}
+        startTransition={startTransition}
       />
     </div>
   );

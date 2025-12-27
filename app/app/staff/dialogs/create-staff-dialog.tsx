@@ -23,6 +23,7 @@ interface CreateStaffDialogProps {
   onOpenChange: (open: boolean) => void;
   companyId: string;
   branches: Array<{ id: string; name: string }>;
+  startTransition: (callback: () => void) => void;
 }
 
 export default function CreateStaffDialog({
@@ -30,6 +31,7 @@ export default function CreateStaffDialog({
   onOpenChange,
   companyId,
   branches,
+  startTransition,
 }: CreateStaffDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -64,7 +66,9 @@ export default function CreateStaffDialog({
 
       toast.success('Staff profile created successfully!');
       onOpenChange(false);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Create error:', err);
       toast.error('Failed to create staff');

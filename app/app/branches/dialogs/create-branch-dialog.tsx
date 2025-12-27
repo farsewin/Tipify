@@ -20,12 +20,14 @@ interface CreateBranchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   companyId: string;
+  startTransition: (callback: () => void) => void;
 }
 
 export default function CreateBranchDialog({
   open,
   onOpenChange,
   companyId,
+  startTransition,
 }: CreateBranchDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -60,7 +62,9 @@ export default function CreateBranchDialog({
       form.reset();
       toast.success('Branch created successfully!');
       onOpenChange(false);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Create error:', err);
       toast.error('Failed to create branch');

@@ -33,6 +33,7 @@ interface EditStaffDialogProps {
   staff: StaffMember | null;
   companyId: string;
   branches: Array<{ id: string; name: string }>;
+  startTransition: (callback: () => void) => void;
 }
 
 export default function EditStaffDialog({
@@ -41,6 +42,7 @@ export default function EditStaffDialog({
   staff,
   companyId,
   branches,
+  startTransition,
 }: EditStaffDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -75,7 +77,9 @@ export default function EditStaffDialog({
 
       toast.success('Staff profile updated successfully');
       onOpenChange(false);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (err) {
       console.error('Update error:', err);
       toast.error('Failed to update staff');
