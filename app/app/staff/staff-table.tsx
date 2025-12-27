@@ -26,6 +26,9 @@ import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import CreateStaffDialog from './dialogs/create-staff-dialog';
+import QRCodeDialog from './dialogs/qr-code-dialog';
+import EditStaffDialog from './dialogs/edit-staff-dialog';
 
 interface StaffMember {
   id: string;
@@ -42,18 +45,17 @@ interface StaffTableProps {
   staff: StaffMember[];
   branches: Array<{ id: string; name: string }>;
   companyId: string;
-  openCreateDialog?: boolean;
-  onOpenCreateDialogChange?: (open: boolean) => void;
+  isCreateDialogOpen: boolean;
+  onCreateDialogChange: (open: boolean) => void;
 }
 
-export default function StaffTable({ staff, branches, companyId, openCreateDialog = false, onOpenCreateDialogChange }: StaffTableProps) {
+export default function StaffTable({ staff, branches, companyId, isCreateDialogOpen, onCreateDialogChange }: StaffTableProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [branchFilter, setBranchFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(openCreateDialog);
   const [qrCodeStaff, setQrCodeStaff] = useState<StaffMember | null>(null);
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [qrData, setQrData] = useState<{
@@ -66,14 +68,6 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
   const [createLoading, setCreateLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    setIsCreateDialogOpen(openCreateDialog);
-  }, [openCreateDialog]);
-
-  const handleCreateDialogChange = (open: boolean) => {
-    setIsCreateDialogOpen(open);
-    onOpenCreateDialogChange?.(open);
-  };
 
   const branchMap = useMemo(() => {
     return new Map(branches.map(b => [b.id, b.name]));
@@ -189,7 +183,7 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
 
       form.reset();
       toast.success('Staff profile created successfully!');
-      handleCreateDialogChange(false);
+      onCreateDialogChange(false);
       router.refresh();
     } catch (err) {
       console.error('Create error:', err);
@@ -562,320 +556,30 @@ export default function StaffTable({ staff, branches, companyId, openCreateDialo
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <form onSubmit={handleSaveEdit}>
-            <DialogHeader>
-              <DialogTitle>Edit Staff Profile</DialogTitle>
-              <DialogDescription>
-                Update staff member information
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {editingStaff && (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="displayName">Display Name *</Label>
-                    <Input
-                      id="displayName"
-                      name="displayName"
-                      defaultValue={editingStaff.displayName}
-                      required
-                      maxLength={100}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="position">Position</Label>
-                    <Input
-                      id="position"
-                      name="position"
-                      defaultValue={editingStaff.position || ''}
-                      maxLength={100}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="avatarUrl">Avatar URL</Label>
-                    <Input
-                      id="avatarUrl"
-                      name="avatarUrl"
-                      type="url"
-                      defaultValue={editingStaff.avatarUrl || ''}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="branchId">Branch *</Label>
-                    <select
-                      id="branchId"
-                      name="branchId"
-                      required
-                      defaultValue={editingStaff.branchId}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <EditStaffDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        staff={editingStaff}
+        companyId={companyId}
+        branches={branches}
+      />
 
       {/* QR Code Dialog */}
-      <Dialog 
-        open={isQRDialogOpen} 
-        onOpenChange={(open) => {
-          setIsQRDialogOpen(open);
-          if (!open) {
-            // Reset state when dialog closes
-            setQrCodeStaff(null);
-            setQrData(null);
-            setQrLoading(false);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {qrCodeStaff ? `QR Code - ${qrCodeStaff.displayName}` : 'QR Code'}
-            </DialogTitle>
-            <DialogDescription>
-              Scan this QR code to access the staff tipping page
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {qrLoading ? (
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Loader className="h-10 w-10 text-primary animate-spin" />
-                </div>
-                <p className="text-sm text-muted-foreground">Generating QR code...</p>
-              </div>
-            ) : qrData ? (
-              <div className="space-y-4">
-                <div className="flex justify-center p-4 bg-muted/30 rounded-lg">
-                  <Image
-                    src={qrData.dataUrl}
-                    alt={`QR Code for ${qrCodeStaff?.displayName || 'Staff'}`}
-                    width={200}
-                    height={200}
-                    className="border rounded"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground break-all text-center bg-muted/30 p-2 rounded">
-                    {qrData.url}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownloadPNG}
-                      className="flex-1"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      PNG
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownloadSVG}
-                      className="flex-1"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      SVG
-                    </Button>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateQRCode}
-                    disabled={qrLoading}
-                    className="w-full"
-                  >
-                    {qrLoading ? (
-                      <>
-                        <Loader className="mr-2 h-4 w-4 animate-spin" />
-                        Regenerating...
-                      </>
-                    ) : (
-                      <>
-                        <QrCode className="mr-2 h-4 w-4" />
-                        Regenerate QR Code
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
-                  <QrCode className="h-10 w-10 text-destructive" />
-                </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Failed to generate QR code
-                </p>
-                <Button onClick={handleGenerateQRCode} className="bg-primary hover:bg-primary/90">
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Try Again
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <QRCodeDialog
+        open={isQRDialogOpen}
+        onOpenChange={setIsQRDialogOpen}
+        staff={qrCodeStaff}
+        companyId={companyId}
+      />
+ 
 
       {/* Create Staff Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <form onSubmit={handleCreate}>
-            <DialogHeader>
-              <DialogTitle>Create Staff Profile</DialogTitle>
-              <DialogDescription>
-                Add a new staff member to your team
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="create-branchId">Branch *</Label>
-                <select
-                  id="create-branchId"
-                  name="branchId"
-                  required
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">Select a branch</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="create-displayName">Display Name *</Label>
-                <Input
-                  id="create-displayName"
-                  name="displayName"
-                  type="text"
-                  placeholder="John Doe"
-                  required
-                  maxLength={100}
-                />
-                <p className="text-xs text-muted-foreground">
-                  This name will be shown to customers when they tip
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="create-position">Position</Label>
-                <Input
-                  id="create-position"
-                  name="position"
-                  type="text"
-                  placeholder="Waiter, Barista, etc."
-                  maxLength={100}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="create-avatarUrl">Avatar URL (Optional)</Label>
-                <Input
-                  id="create-avatarUrl"
-                  name="avatarUrl"
-                  type="url"
-                  placeholder="https://example.com/avatar.jpg"
-                />
-                <p className="text-xs text-muted-foreground">
-                  URL to staff member&apos;s profile picture
-                </p>
-              </div>
-
-              <Separator className="my-2" />
-              <div className="text-sm font-medium">Account Credentials</div>
-              <p className="text-xs text-muted-foreground">
-                A user account will be created for this staff member to access their dashboard
-              </p>
-
-              <div className="grid gap-2">
-                <Label htmlFor="create-email">Email *</Label>
-                <Input
-                  id="create-email"
-                  name="email"
-                  type="email"
-                  placeholder="staff@example.com"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Staff member&apos;s email address for login
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="create-password">Password *</Label>
-                <Input
-                  id="create-password"
-                  name="password"
-                  type="password"
-                  placeholder="Minimum 8 characters"
-                  required
-                  minLength={8}
-                  maxLength={255}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Password must be at least 8 characters long
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleCreateDialogChange(false)}
-                disabled={createLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createLoading}>
-                {createLoading ? (
-                  <>
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Staff Profile'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <CreateStaffDialog
+        open={isCreateDialogOpen}
+        onOpenChange={onCreateDialogChange}
+        companyId={companyId}
+        branches={branches}
+      />
     </div>
   );
 }
-

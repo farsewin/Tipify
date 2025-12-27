@@ -7,15 +7,7 @@ import { getStaff } from '../staff/actions';
 import { getTips } from './actions';
 import { getUserCompanies } from '@/src/shared/helpers/access-control';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../_components/ui/card';
-import TipsTable from './tips-table';
-import { DollarSign, Clock, CheckCircle } from 'lucide-react';
+import TipsPageClient from './tips-page-client';
 
 async function getCompanyData() {
   const cookieStore = await cookies();
@@ -69,79 +61,24 @@ export default async function TipsPage() {
   const paidAmount = paidTips.reduce((sum, tip) => sum + tip.amount, 0);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Tips</h1>
-        <p className="text-muted-foreground">View and manage all tips</p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tips</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalAmount)}</div>
-            <p className="text-xs text-muted-foreground">{tips.length} transaction{tips.length !== 1 ? 's' : ''}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(pendingAmount)}</div>
-            <p className="text-xs text-muted-foreground">{pendingTips.length} tip{pendingTips.length !== 1 ? 's' : ''} to distribute</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid Out</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(paidAmount)}</div>
-            <p className="text-xs text-muted-foreground">{paidTips.length} tip{paidTips.length !== 1 ? 's' : ''} distributed</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tips Table */}
-      {tips.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>No tips yet</CardTitle>
-            <CardDescription>
-              Tips will appear here once customers start tipping.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>All Tips</CardTitle>
-            <CardDescription>
-              {tips.length} tip{tips.length !== 1 ? 's' : ''} total
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TipsTable
-              tips={tips.map((tip) => ({
-                ...tip,
-                branchName: branchMap.get(tip.branchId) || 'Unknown',
-                staffName: staffMap.get(tip.staffProfileId) || 'Unknown',
-                formattedAmount: formatCurrency(tip.amount),
-              }))}
-              companyId={company.id}
-            />
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    <TipsPageClient
+      companyId={company.id}
+      tips={tips.map((tip) => ({
+        ...tip,
+        branchName: branchMap.get(tip.branchId) || 'Unknown',
+        staffName: staffMap.get(tip.staffProfileId) || 'Unknown',
+        formattedAmount: formatCurrency(tip.amount),
+      }))}
+      branches={branches}
+      staff={staff}
+      stats={{
+        totalAmount: formatCurrency(totalAmount),
+        pendingAmount: formatCurrency(pendingAmount),
+        paidAmount: formatCurrency(paidAmount),
+        totalCount: tips.length,
+        pendingCount: pendingTips.length,
+        paidCount: paidTips.length,
+      }}
+    />
   );
 }

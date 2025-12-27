@@ -73,8 +73,8 @@ export default function StaffPageClient({ staff, branches, companyId }: StaffPag
               staff={staff}
               branches={branches}
               companyId={companyId}
-              openCreateDialog={isCreateDialogOpen}
-              onOpenCreateDialogChange={setIsCreateDialogOpen}
+              isCreateDialogOpen={isCreateDialogOpen}
+              onCreateDialogChange={setIsCreateDialogOpen}
             />
           </CardContent>
         </Card>

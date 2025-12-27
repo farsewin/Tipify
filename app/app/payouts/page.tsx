@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { SESSION_COOKIE } from '@/config';
 import { getCompany } from '../companies/actions';
 import { getBranches } from '../branches/actions';
+import { getStaff } from '../staff/actions';
 import { getPayoutBatches } from './actions';
 import { getUserCompanies } from '@/src/shared/helpers/access-control';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
@@ -22,12 +23,14 @@ async function getCompanyData() {
       redirect('/sign-in');
     }
 
-    // Use first company for now
     const company = await getCompany(companies[0].companyId);
-    const branches = await getBranches(company.id, true);
-    const payoutBatches = await getPayoutBatches(company.id);
+    const [branches, staff, payoutBatches] = await Promise.all([
+      getBranches(company.id, true),
+      getStaff(company.id, undefined, true),
+      getPayoutBatches(company.id),
+    ]);
 
-    return { company, branches, payoutBatches };
+    return { company, branches, staff, payoutBatches };
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
       redirect('/sign-in');
@@ -36,21 +39,39 @@ async function getCompanyData() {
   }
 }
 
+function formatCurrency(amount: number): string {
+  const amountInUnits = amount / 100;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'QAR',
+    minimumFractionDigits: 2,
+  }).format(amountInUnits);
+}
+
 export default async function PayoutsPage() {
-  const { company, branches, payoutBatches } = await getCompanyData();
+  const { company, branches, staff, payoutBatches } = await getCompanyData();
+
+  // Calculate stats
+  const totalAmount = payoutBatches.reduce((sum, batch) => sum + batch.totalAmount, 0);
+  const pendingBatches = payoutBatches.filter(b => b.status === 'PENDING');
+  const completedBatches = payoutBatches.filter(b => b.status === 'COMPLETED');
+  const pendingAmount = pendingBatches.reduce((sum, batch) => sum + batch.totalAmount, 0);
+  const completedAmount = completedBatches.reduce((sum, batch) => sum + batch.totalAmount, 0);
 
   return (
     <PayoutsPageClient
       companyId={company.id}
       branches={branches}
+      staff={staff}
       payoutBatches={payoutBatches}
+      stats={{
+        totalAmount: formatCurrency(totalAmount),
+        pendingAmount: formatCurrency(pendingAmount),
+        completedAmount: formatCurrency(completedAmount),
+        totalCount: payoutBatches.length,
+        pendingCount: pendingBatches.length,
+        completedCount: completedBatches.length,
+      }}
     />
   );
 }
-
-
-
-
-
-
-

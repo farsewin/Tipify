@@ -21,7 +21,7 @@ async function getCompanyData() {
     const companies = await getUserCompanies(sessionId);
     if (companies.length === 0) {
       redirect('/sign-in');
-    }
+    } 
 
     const company = await getCompany(companies[0].companyId);
     const branches = await getBranches(company.id);

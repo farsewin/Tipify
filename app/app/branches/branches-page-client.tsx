@@ -1,16 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '../../_components/ui/button';
+import { Plus, MapPin } from 'lucide-react';
+import BranchesTable from './branches-table';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from '../../_components/ui/card';
-import { Button } from '../../_components/ui/button';
-import { Plus, MapPin } from 'lucide-react';
-import BranchesTable from './branches-table';
 
 interface Branch {
   id: string;
@@ -73,8 +72,8 @@ export default function BranchesPageClient({ branches, companyId }: BranchesPage
         <BranchesTable
           branches={branches}
           companyId={companyId}
-          openCreateDialog={isCreateDialogOpen}
-          onOpenCreateDialogChange={setIsCreateDialogOpen}
+          isCreateDialogOpen={isCreateDialogOpen}
+          onCreateDialogChange={setIsCreateDialogOpen}
         />
       )}
     </div>

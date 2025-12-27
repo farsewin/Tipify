@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { Filter, X, MapPin, CheckCircle2, XCircle, Edit, Power, QrCode, Download, MoreVertical, Users, DollarSign, TrendingUp } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Filter, X, MapPin, CheckCircle2, Edit, Power, QrCode, MoreVertical, Users, TrendingUp } from 'lucide-react';
 import { Button } from '../../_components/ui/button';
 import { Input } from '../../_components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../_components/ui/card';
+import { Card, CardContent } from '../../_components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,19 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../_components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../_components/ui/dialog';
-import { Label } from '../../_components/ui/label';
 import { toast } from 'sonner';
 import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import CreateBranchDialog from './dialogs/create-branch-dialog';
+import EditBranchDialog from './dialogs/edit-branch-dialog';
+import QRCodeDialog from './dialogs/qr-code-dialog';
 
 interface Branch {
   id: string;
@@ -42,37 +35,22 @@ interface Branch {
 interface BranchesTableProps {
   branches: Branch[];
   companyId: string;
-  openCreateDialog?: boolean;
-  onOpenCreateDialogChange?: (open: boolean) => void;
+  isCreateDialogOpen: boolean;
+  onCreateDialogChange: (open: boolean) => void;
 }
 
-export default function BranchesTable({ branches, companyId, openCreateDialog = false, onOpenCreateDialogChange }: BranchesTableProps) {
+export default function BranchesTable({
+  branches,
+  companyId,
+  isCreateDialogOpen,
+  onCreateDialogChange
+}: BranchesTableProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(openCreateDialog);
   const [qrCodeBranch, setQrCodeBranch] = useState<Branch | null>(null);
-  const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
-  const [qrData, setQrData] = useState<{
-    url: string;
-    dataUrl: string;
-    svg: string;
-  } | null>(null);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [createLoading, setCreateLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIsCreateDialogOpen(openCreateDialog);
-  }, [openCreateDialog]);
-
-  const handleCreateDialogChange = (open: boolean) => {
-    setIsCreateDialogOpen(open);
-    onOpenCreateDialogChange?.(open);
-  };
 
   const filteredBranches = useMemo(() => {
     return branches.filter((branch) => {
@@ -97,91 +75,9 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
     setSearchQuery('');
   };
 
-  const handleEdit = (branch: Branch) => {
-    setEditingBranch(branch);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editingBranch || loading) return;
-
-    setLoading(true);
-    const formData = new FormData(event.currentTarget);
-    
-    try {
-      const res = await fetch(`/api/branches/${editingBranch.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId: companyId,
-          name: formData.get('name') as string,
-          location: formData.get('location') as string || null,
-        }),
-      });
-      
-      const result = await res.json();
-      
-      if (!res.ok) {
-        toast.error(result.error || 'Failed to update branch');
-        setLoading(false);
-        return;
-      }
-      
-      toast.success('Branch updated successfully');
-      setIsEditDialogOpen(false);
-      setEditingBranch(null);
-      router.refresh();
-    } catch (err) {
-      console.error('Update error:', err);
-      toast.error('Failed to update branch');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (createLoading) return;
-
-    setCreateLoading(true);
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    
-    try {
-      const res = await fetch('/api/branches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId: companyId,
-          name: formData.get('name') as string,
-          location: formData.get('location') as string || undefined,
-        }),
-      });
-      
-      const result = await res.json();
-      
-      if (!res.ok) {
-        toast.error(result.error || 'Failed to create branch');
-        setCreateLoading(false);
-        return;
-      }
-      
-      form.reset();
-      toast.success('Branch created successfully!');
-      handleCreateDialogChange(false);
-      router.refresh();
-    } catch (err) {
-      console.error('Create error:', err);
-      toast.error('Failed to create branch');
-    } finally {
-      setCreateLoading(false);
-    }
-  };
-
   const handleToggleActive = async (branch: Branch) => {
     if (toggleLoading === branch.id) return;
-    
+
     setToggleLoading(branch.id);
 
     try {
@@ -193,15 +89,15 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
           active: !branch.active,
         }),
       });
-      
+
       const result = await res.json();
-      
+
       if (!res.ok) {
         toast.error(result.error || 'Failed to update branch');
         setToggleLoading(null);
         return;
       }
-      
+
       toast.success(`Branch ${branch.active ? 'deactivated' : 'activated'} successfully`);
       router.refresh();
     } catch (err) {
@@ -210,82 +106,6 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
     } finally {
       setToggleLoading(null);
     }
-  };
-
-  const handleGenerateQR = async (branch: Branch) => {
-    setQrCodeBranch(branch);
-    setQrData(null);
-    setIsQRDialogOpen(true);
-    
-    // Automatically generate QR code when dialog opens
-    setQrLoading(true);
-    try {
-      const res = await fetch(`/api/branches/${branch.id}/qr?companyId=${companyId}`);
-      const result = await res.json();
-
-      if (!res.ok) {
-        toast.error(result.error || 'Failed to generate QR code');
-        return;
-      }
-      
-      if (result.url && result.dataUrl && result.svg) {
-        setQrData(result);
-      } else {
-        toast.error('Invalid QR code response');
-      }
-    } catch (error) {
-      console.error('QR generation error:', error);
-      toast.error('Failed to generate QR code');
-    } finally {
-      setQrLoading(false);
-    }
-  };
-
-  const handleGenerateQRCode = async () => {
-    if (!qrCodeBranch) return;
-    
-    setQrLoading(true);
-    try {
-      const res = await fetch(`/api/branches/${qrCodeBranch.id}/qr?companyId=${companyId}`);
-      const result = await res.json();
-
-      if (!res.ok) {
-        toast.error(result.error || 'Failed to generate QR code');
-        return;
-      }
-      
-      if (result.url && result.dataUrl && result.svg) {
-        setQrData(result);
-      } else {
-        toast.error('Invalid QR code response');
-      }
-    } catch (error) {
-      console.error('QR generation error:', error);
-      toast.error('Failed to generate QR code');
-    } finally {
-      setQrLoading(false);
-    }
-  };
-
-  const handleDownloadPNG = () => {
-    if (!qrData || !qrCodeBranch) return;
-
-    const link = document.createElement('a');
-    link.href = qrData.dataUrl;
-    link.download = `${qrCodeBranch.name}-qr-code.png`;
-    link.click();
-  };
-
-  const handleDownloadSVG = () => {
-    if (!qrData || !qrCodeBranch) return;
-
-    const svgBlob = new Blob([qrData.svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(svgBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${qrCodeBranch.name}-qr-code.svg`;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   const formatCurrency = (amount: number): string => {
@@ -433,7 +253,7 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
             <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium mb-2">No branches found</p>
             <p className="text-sm text-muted-foreground">
-              {hasActiveFilters 
+              {hasActiveFilters
                 ? 'Try adjusting your filters'
                 : 'Get started by creating your first branch'
               }
@@ -444,50 +264,49 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredBranches.map((branch) => (
             <Card key={branch.id} className="border-border hover:shadow-lg transition-all group hover:border-primary/50">
-              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+              <div className="flex flex-row items-start justify-between space-y-0 pb-4 p-6">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
                     <MapPin className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg truncate">{branch.name}</CardTitle>
+                    <h3 className="text-lg font-semibold truncate">{branch.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          branch.active
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${branch.active
                             ? 'bg-success/10 text-success'
                             : 'bg-gray-100 text-gray-800'
-                        }`}
+                          }`}
                       >
                         {branch.active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                   </div>
                 </div>
-                
-                {/* Action buttons - QR code and options */}
+
+                {/* Action buttons */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <Button
                     variant="outline"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => handleGenerateQR(branch)}
+                    onClick={() => setQrCodeBranch(branch)}
                     title="Generate QR Code"
                   >
                     <QrCode className="h-4 w-4" />
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8"
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEdit(branch)}>
+                      <DropdownMenuItem onClick={() => setEditingBranch(branch)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Branch
                       </DropdownMenuItem>
@@ -506,7 +325,7 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              </CardHeader>
+              </div>
 
               <CardContent className="space-y-4">
                 <div className="space-y-2 text-sm">
@@ -550,226 +369,26 @@ export default function BranchesTable({ branches, companyId, openCreateDialog = 
         </div>
       )}
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <form onSubmit={handleSaveEdit}>
-            <DialogHeader>
-              <DialogTitle>Edit Branch</DialogTitle>
-              <DialogDescription>
-                Update branch information
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {editingBranch && (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Branch Name *</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      defaultValue={editingBranch.name}
-                      required
-                      maxLength={100}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      name="location"
-                      defaultValue={editingBranch.location || ''}
-                      maxLength={255}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90">
-                {loading ? (
-                  <>
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Dialogs */}
+      <CreateBranchDialog
+        open={isCreateDialogOpen}
+        onOpenChange={onCreateDialogChange}
+        companyId={companyId}
+      />
 
-      {/* QR Code Dialog */}
-      <Dialog 
-        open={isQRDialogOpen} 
-        onOpenChange={(open) => {
-          setIsQRDialogOpen(open);
-          if (!open) {
-            // Reset state when dialog closes
-            setQrCodeBranch(null);
-            setQrData(null);
-            setQrLoading(false);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {qrCodeBranch ? `QR Code - ${qrCodeBranch.name}` : 'QR Code'}
-            </DialogTitle>
-            <DialogDescription>
-              Scan this QR code to access the branch tipping page
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {qrLoading ? (
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Loader className="h-10 w-10 text-primary animate-spin" />
-                </div>
-                <p className="text-sm text-muted-foreground">Generating QR code...</p>
-              </div>
-            ) : qrData ? (
-              <div className="space-y-4">
-                <div className="flex justify-center p-4 bg-muted/30 rounded-lg">
-                  <Image
-                    src={qrData.dataUrl}
-                    alt={`QR Code for ${qrCodeBranch?.name || 'Branch'}`}
-                    width={200}
-                    height={200}
-                    className="border rounded"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground break-all text-center bg-muted/30 p-2 rounded">
-                    {qrData.url}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownloadPNG}
-                      className="flex-1"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      PNG
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownloadSVG}
-                      className="flex-1"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      SVG
-                    </Button>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateQRCode}
-                    disabled={qrLoading}
-                    className="w-full"
-                  >
-                    {qrLoading ? (
-                      <>
-                        <Loader className="mr-2 h-4 w-4 animate-spin" />
-                        Regenerating...
-                      </>
-                    ) : (
-                      <>
-                        <QrCode className="mr-2 h-4 w-4" />
-                        Regenerate QR Code
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
-                  <QrCode className="h-10 w-10 text-destructive" />
-                </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Failed to generate QR code
-                </p>
-                <Button onClick={handleGenerateQRCode} className="bg-primary hover:bg-primary/90">
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Try Again
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Branch Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogChange}>
-        <DialogContent>
-          <form onSubmit={handleCreate}>
-            <DialogHeader>
-              <DialogTitle>Create New Branch</DialogTitle>
-              <DialogDescription>
-                Add a new location for your company
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="create-name">Branch Name *</Label>
-                <Input
-                  id="create-name"
-                  name="name"
-                  type="text"
-                  placeholder="Downtown Location"
-                  required
-                  maxLength={100}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="create-location">Location</Label>
-                <Input
-                  id="create-location"
-                  name="location"
-                  type="text"
-                  placeholder="123 Main St, City, Country"
-                  maxLength={255}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleCreateDialogChange(false)}
-                disabled={createLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createLoading} className="bg-primary hover:bg-primary/90">
-                {createLoading ? (
-                  <>
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Branch'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <EditBranchDialog
+        open={!!editingBranch}
+        onOpenChange={(open) => !open && setEditingBranch(null)}
+        branch={editingBranch}
+        companyId={companyId}
+      />
+      <QRCodeDialog
+        open={!!qrCodeBranch}
+        onOpenChange={(open) => !open && setQrCodeBranch(null)}
+        branch={qrCodeBranch}
+        companyId={companyId}
+      />
     </div>
+
   );
 }
