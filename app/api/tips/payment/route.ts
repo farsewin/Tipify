@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { generateIdFromEntropySize } from 'lucia';
 import {
   getCompaniesRepository,
   getBranchesRepository,
@@ -28,14 +27,13 @@ export async function POST(request: NextRequest) {
     const companiesRepository = getCompaniesRepository();
     const company = await companiesRepository.getCompany(data.companyId);
     if (!company) {
-      return NextResponse.json(
-        { error: 'Company not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
     const staffProfilesRepository = getStaffProfilesRepository();
-    const staff = await staffProfilesRepository.getStaffProfile(data.staffProfileId);
+    const staff = await staffProfilesRepository.getStaffProfile(
+      data.staffProfileId
+    );
     if (!staff || staff.companyId !== data.companyId) {
       return NextResponse.json(
         { error: 'Staff profile not found' },
@@ -72,7 +70,8 @@ export async function POST(request: NextRequest) {
         throw new Error(paymentResponse.message || 'Payment failed');
       }
 
-      const tipId = generateIdFromEntropySize(10);
+      const tipId = crypto.randomUUID();
+      console.log('💰 [Tips Payment API] Creating tip with ID:', tipId);
       const tip = await tipsRepository.createTip(
         {
           id: tipId,
@@ -108,24 +107,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (err instanceof InputParseError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
     if (err instanceof NotFoundError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 404 });
     }
 
     return NextResponse.json(
-      { error: 'An error happened while processing the payment. Please try again later.' },
+      {
+        error:
+          'An error happened while processing the payment. Please try again later.',
+      },
       { status: 500 }
     );
   }
 }
-
-

@@ -11,6 +11,36 @@
       },
       {
         "mode": "full",
+        "type": "lib",
+        "pattern": ["src/lib/**/*"]
+      },
+      {
+        "mode": "full",
+        "type": "shared",
+        "pattern": ["src/shared/**/*"]
+      },
+      {
+        "mode": "full",
+        "type": "services",
+        "pattern": ["src/services/**/*"]
+      },
+      {
+        "mode": "full",
+        "type": "repositories",
+        "pattern": ["src/repositories/**/*"]
+      },
+      {
+        "mode": "full",
+        "type": "models",
+        "pattern": ["src/models/**/*"]
+      },
+      {
+        "mode": "full",
+        "type": "service-locator",
+        "pattern": ["src/service-locator.ts"]
+      },
+      {
+        "mode": "full",
         "type": "controllers",
         "pattern": ["src/interface-adapters/controllers/**/*"]
       },
@@ -56,7 +86,31 @@
         "rules": [
           {
             "from": "web",
-            "allow": ["web", "entities", "di"]
+            "allow": ["web", "entities", "di", "lib", "shared", "services", "repositories", "models", "service-locator"]
+          },
+          {
+            "from": "lib",
+            "allow": ["lib", "entities", "infrastructure", "shared", "models"]
+          },
+          {
+            "from": "shared",
+            "allow": ["shared", "models", "services", "repositories", "lib"]
+          },
+          {
+            "from": "services",
+            "allow": ["services", "shared", "models", "repositories", "lib"]
+          },
+          {
+            "from": "repositories",
+            "allow": ["repositories", "shared", "models"]
+          },
+          {
+            "from": "models",
+            "allow": ["models", "shared"]
+          },
+          {
+            "from": "service-locator",
+            "allow": ["services", "repositories", "shared", "models", "lib"]
           },
           {
             "from": "controllers",

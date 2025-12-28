@@ -3,12 +3,12 @@
 // ============================================
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { DrizzlePostgreSQLAdapter } from '@lucia-auth/adapter-drizzle'; // Changed from DrizzleSQLiteAdapter
 import { ExtractTablesWithRelations } from 'drizzle-orm';
-import { PgTransaction } from 'drizzle-orm/pg-core'; // Changed from SQLiteTransaction
-import { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js'; // Changed from ResultSet
+import { PgTransaction } from 'drizzle-orm/pg-core';
+import { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 
 import {
+  accounts,
   auditLogs,
   branches,
   companies,
@@ -20,6 +20,7 @@ import {
   subscriptionPlans,
   tips,
   users,
+  verifications,
 } from './schema';
 
 // ============================================
@@ -41,6 +42,8 @@ export const db = drizzle(client, {
   schema: {
     users,
     sessions,
+    accounts,
+    verifications,
     companies,
     companyMembers,
     branches,
@@ -54,16 +57,13 @@ export const db = drizzle(client, {
 });
 
 // ============================================
-// CHANGED: Setup lucia adapter for PostgreSQL
-// ============================================
-export const luciaAdapter = new DrizzlePostgreSQLAdapter(db, sessions, users);
-
-// ============================================
-// CHANGED: Export Transaction type for PostgreSQL
+// Export Transaction type for PostgreSQL
 // ============================================
 type Schema = {
   users: typeof users;
   sessions: typeof sessions;
+  accounts: typeof accounts;
+  verifications: typeof verifications;
   companies: typeof companies;
   companyMembers: typeof companyMembers;
   branches: typeof branches;

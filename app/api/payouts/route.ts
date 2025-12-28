@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
-import { generateIdFromEntropySize } from 'lucia';
 import { SESSION_COOKIE } from '@/config';
 import {
   getCompaniesRepository,
@@ -13,7 +12,10 @@ import {
 } from '@/src/service-locator';
 import { validateCompanyAccess } from '@/src/shared/helpers/access-control';
 import { NotFoundError, InputParseError } from '@/src/shared/errors/common';
-import { UnauthenticatedError, UnauthorizedError } from '@/src/shared/errors/auth';
+import {
+  UnauthenticatedError,
+  UnauthorizedError,
+} from '@/src/shared/errors/auth';
 
 const createPayoutBatchSchema = z.object({
   companyId: z.string(),
@@ -28,10 +30,7 @@ export async function POST(request: NextRequest) {
     const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Must be logged in' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Must be logged in' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -42,10 +41,7 @@ export async function POST(request: NextRequest) {
     const companiesRepository = getCompaniesRepository();
     const company = await companiesRepository.getCompany(parsed.companyId);
     if (!company) {
-      return NextResponse.json(
-        { error: 'Company not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
     const authService = getAuthenticationService();
@@ -91,7 +87,11 @@ export async function POST(request: NextRequest) {
       );
 
       const payoutBatchesRepository = getPayoutBatchesRepository();
-      const payoutBatchId = generateIdFromEntropySize(10);
+      const payoutBatchId = crypto.randomUUID();
+      console.log(
+        '💸 [Payouts API] Creating payout batch with ID:',
+        payoutBatchId
+      );
 
       const payoutBatch = await payoutBatchesRepository.createPayoutBatch(
         {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       const payoutItems: any[] = [];
 
       for (const [staffProfileId, totals] of staffTotals.entries()) {
-        const payoutItemId = generateIdFromEntropySize(10);
+        const payoutItemId = crypto.randomUUID();
         const payoutItem = await payoutItemsRepository.createPayoutItem(
           {
             id: payoutItemId,
@@ -127,7 +127,10 @@ export async function POST(request: NextRequest) {
       return { payoutBatch, payoutItems };
     });
 
-    return NextResponse.json({ success: true, payoutBatchId: result.payoutBatch.id });
+    return NextResponse.json({
+      success: true,
+      payoutBatchId: result.payoutBatch.id,
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(
@@ -137,13 +140,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (err instanceof InputParseError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
-    if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
+    if (
+      err instanceof UnauthenticatedError ||
+      err instanceof UnauthorizedError
+    ) {
       return NextResponse.json(
         { error: 'You do not have permission to create payout batches' },
         { status: 403 }
@@ -151,15 +154,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (err instanceof NotFoundError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 404 });
     }
 
     console.error('Create payout batch error:', err);
     return NextResponse.json(
-      { error: 'An error happened while creating the payout batch. Please try again later.' },
+      {
+        error:
+          'An error happened while creating the payout batch. Please try again later.',
+      },
       { status: 500 }
     );
   }
@@ -171,10 +174,7 @@ export async function GET(request: NextRequest) {
     const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Must be logged in' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Must be logged in' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -189,17 +189,19 @@ export async function GET(request: NextRequest) {
 
     await validateCompanyAccess(sessionId, companyId);
 
-    const { getPayoutBatchesRepository } = await import('@/src/service-locator');
+    const { getPayoutBatchesRepository } =
+      await import('@/src/service-locator');
     const payoutBatchesRepository = getPayoutBatchesRepository();
-    const payoutBatches = await payoutBatchesRepository.getPayoutBatchesByCompany(companyId);
+    const payoutBatches =
+      await payoutBatchesRepository.getPayoutBatchesByCompany(companyId);
 
     return NextResponse.json({ payoutBatches });
   } catch (err) {
-    if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (
+      err instanceof UnauthenticatedError ||
+      err instanceof UnauthorizedError
+    ) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('Get payout batches error:', err);
     return NextResponse.json(
@@ -208,5 +210,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-

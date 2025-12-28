@@ -11,24 +11,24 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  console.log('🏢 AppLayout: Checking authentication...');
-  
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+  console.log('🏢 [AppLayout] Checking authentication...');
 
-  if (!sessionId) {
-    console.log('❌ AppLayout: No session cookie found');
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(SESSION_COOKIE)?.value;
+
+  if (!sessionToken) {
+    console.log('❌ [AppLayout] No session cookie found');
     redirect('/sign-in');
   }
 
-  console.log('🔍 AppLayout: Session cookie found, validating user type...');
+  console.log('🔍 [AppLayout] Session cookie found, validating user type...');
 
   try {
     // Verify user is a company member
     // This function does the database query to validate session and get user type
-    const { userType } = await getUserType(sessionId);
-    
-    console.log('✅ AppLayout: User type determined', {
+    const { userType } = await getUserType(sessionToken);
+
+    console.log('✅ [AppLayout] User type determined', {
       isCompanyMember: userType.isCompanyMember,
       isStaffMember: userType.isStaffMember,
     });
@@ -36,24 +36,26 @@ export default async function AppLayout({
     // Redirect staff-only users to their dashboard if they try to access company routes
     // (unless they're also company members)
     if (!userType.isCompanyMember && userType.isStaffMember) {
-      console.log('↪️ AppLayout: Staff-only user, redirecting to staff dashboard');
+      console.log(
+        '↪️ [AppLayout] Staff-only user, redirecting to staff dashboard'
+      );
       redirect('/staff/dashboard');
     }
 
     // If user is neither staff nor company member, redirect to sign-in
     if (!userType.isCompanyMember && !userType.isStaffMember) {
-      console.log('❌ AppLayout: User is neither staff nor company member');
+      console.log('❌ [AppLayout] User is neither staff nor company member');
       redirect('/sign-in');
     }
 
-    console.log('✅ AppLayout: Access granted to company dashboard');
+    console.log('✅ [AppLayout] Access granted to company dashboard');
   } catch (err) {
-    console.error('❌ AppLayout: Error during authentication', err);
-    
+    console.error('❌ [AppLayout] Error during authentication', err);
+
     if (err instanceof UnauthenticatedError) {
       redirect('/sign-in');
     }
-    
+
     // Re-throw other errors to be handled by error boundary
     throw err;
   }

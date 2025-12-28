@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import { generateIdFromEntropySize } from 'lucia';
 import { hash } from 'bcrypt-ts';
 import { db } from './index';
 import {
@@ -13,12 +12,15 @@ import {
   payoutBatches,
   payoutItems,
   auditLogs,
+  accounts,
 } from './schema';
 import { sql } from 'drizzle-orm';
 
 async function main() {
   console.log('🌱 Starting database seed...');
-  console.log(`📡 Database URL: ${process.env.DATABASE_URL ? 'Set' : 'Not set'}`);
+  console.log(
+    `📡 Database URL: ${process.env.DATABASE_URL ? 'Set' : 'Not set'}`
+  );
 
   try {
     // Test database connection
@@ -26,8 +28,10 @@ async function main() {
     await db.execute(sql`SELECT 1`);
     console.log('✅ Database connection successful');
 
-    // Generate ID function using lucia (same as the rest of the codebase)
-    const generateId = () => generateIdFromEntropySize(10);
+    // Generate ID function using crypto.randomUUID()
+    const generateId = () => crypto.randomUUID();
+    const generatePublicId = () =>
+      crypto.randomUUID().replace(/-/g, '').substring(0, 16);
 
     // Clear existing data (optional - comment out if you want to preserve data)
     console.log('🧹 Clearing existing data...');
@@ -38,6 +42,7 @@ async function main() {
     await db.delete(branches);
     await db.delete(companyMembers);
     await db.delete(companies);
+    await db.delete(accounts);
     await db.delete(users);
     await db.delete(subscriptionPlans);
     await db.delete(auditLogs);
@@ -45,7 +50,11 @@ async function main() {
 
     // 1. Create subscription plans first (no dependencies)
     console.log('📦 Seeding subscription plans...');
-    const planNames: Array<'Basic' | 'Pro' | 'Enterprise'> = ['Basic', 'Pro', 'Enterprise'];
+    const planNames: Array<'Basic' | 'Pro' | 'Enterprise'> = [
+      'Basic',
+      'Pro',
+      'Enterprise',
+    ];
     const createdPlans = await db
       .insert(subscriptionPlans)
       .values(
@@ -68,13 +77,9 @@ async function main() {
     // 2. Create company users (for company management)
     console.log('👤 Seeding company users...');
     const passwordHash = await hash('password123', 10);
-    const companyUserRoles: Array<'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'STAFF'> = [
-      'SUPER_ADMIN',
-      'ADMIN',
-      'MANAGER',
-      'STAFF',
-      'STAFF',
-    ];
+    const companyUserRoles: Array<
+      'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'STAFF'
+    > = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'STAFF', 'STAFF'];
     const createdUsers = await db
       .insert(users)
       .values(
@@ -82,12 +87,25 @@ async function main() {
           id: generateId(),
           name: `Company User ${i + 1}`,
           email: `user${i + 1}@example.com`,
-          password_hash: passwordHash,
+          emailVerified: false,
           role: companyUserRoles[i],
         }))
       )
       .returning();
     console.log(`   ✅ Created ${createdUsers.length} company users`);
+
+    // Create accounts for users (Better Auth stores passwords here)
+    console.log('🔐 Creating accounts for company users...');
+    await db.insert(accounts).values(
+      createdUsers.map((user) => ({
+        id: generateId(),
+        accountId: user.id,
+        providerId: 'credential',
+        userId: user.id,
+        password: passwordHash,
+      }))
+    );
+    console.log(`   ✅ Created ${createdUsers.length} user accounts`);
 
     // 3. Create companies
     console.log('🏢 Seeding companies...');
@@ -161,16 +179,38 @@ async function main() {
           id: generateId(),
           name: `Staff Member ${i + 1}`,
           email: `staff${i + 1}@example.com`,
-          password_hash: staffUsersPasswordHash,
+          emailVerified: false,
           role: 'STAFF' as const,
         }))
       )
       .returning();
     console.log(`   ✅ Created ${createdStaffUsers.length} staff users`);
 
+    // Create accounts for staff users (Better Auth stores passwords here)
+    console.log('🔐 Creating accounts for staff users...');
+    await db.insert(accounts).values(
+      createdStaffUsers.map((user) => ({
+        id: generateId(),
+        accountId: user.id,
+        providerId: 'credential',
+        userId: user.id,
+        password: staffUsersPasswordHash,
+      }))
+    );
+    console.log(
+      `   ✅ Created ${createdStaffUsers.length} staff user accounts`
+    );
+
     // 7. Create staff profiles
     console.log('👔 Seeding staff profiles...');
-    const positions = ['Server', 'Bartender', 'Host', 'Manager', 'Chef', 'Busser'];
+    const positions = [
+      'Server',
+      'Bartender',
+      'Host',
+      'Manager',
+      'Chef',
+      'Busser',
+    ];
     const createdStaff = await db
       .insert(staffProfiles)
       .values(
@@ -185,7 +225,7 @@ async function main() {
               userId: staffUser.id,
               displayName: `Staff ${staffUserIndex + 1}`,
               position: positions[staffUserIndex % positions.length],
-              publicId: generateIdFromEntropySize(16),
+              publicId: generatePublicId(),
               active: true,
             };
           })
@@ -209,9 +249,12 @@ async function main() {
         branchId: staff.branchId,
         staffProfileId: staff.id,
         amount: Math.floor(Math.random() * 5000) + 100,
-        paymentStatus: paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)],
+        paymentStatus:
+          paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)],
         distributionStatus:
-          distributionStatuses[Math.floor(Math.random() * distributionStatuses.length)],
+          distributionStatuses[
+            Math.floor(Math.random() * distributionStatuses.length)
+          ],
         paymentProvider: 'STRIPE' as const,
         customerRating: Math.floor(Math.random() * 5) + 1,
       }));
@@ -225,7 +268,9 @@ async function main() {
       .insert(payoutBatches)
       .values(
         createdCompanies.map((company) => {
-          const companyBranch = createdBranches.find((b) => b.companyId === company.id);
+          const companyBranch = createdBranches.find(
+            (b) => b.companyId === company.id
+          );
           return {
             id: generateId(),
             companyId: company.id,
@@ -249,7 +294,9 @@ async function main() {
       const batchStaff = branch
         ? createdStaff.filter((s) => s.branchId === branch.id)
         : createdStaff.filter((s) => {
-            const staffCompany = createdCompanies.find((c) => c.id === s.companyId);
+            const staffCompany = createdCompanies.find(
+              (c) => c.id === s.companyId
+            );
             return staffCompany?.id === batch.companyId;
           });
       return batchStaff.slice(0, 3).map((staff) => ({
@@ -282,7 +329,9 @@ async function main() {
     console.log('     - user4@example.com (STAFF)');
     console.log('     - user5@example.com (STAFF)');
     console.log('   Staff Users:');
-    console.log(`     - staff1@example.com through staff${createdStaffUsers.length}@example.com`);
+    console.log(
+      `     - staff1@example.com through staff${createdStaffUsers.length}@example.com`
+    );
     console.log('   Password for all: password123');
     console.log('\n✨ Seed completed successfully!');
   } catch (error) {

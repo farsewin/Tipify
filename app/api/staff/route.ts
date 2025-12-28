@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
-import { generateIdFromEntropySize } from 'lucia';
 import { SESSION_COOKIE } from '@/config';
 import {
   getUsersRepository,
@@ -14,7 +13,11 @@ import {
 } from '@/src/service-locator';
 import { validateCompanyAccess } from '@/src/shared/helpers/access-control';
 import { NotFoundError, InputParseError } from '@/src/shared/errors/common';
-import { UnauthenticatedError, UnauthorizedError, AuthenticationError } from '@/src/shared/errors/auth';
+import {
+  UnauthenticatedError,
+  UnauthorizedError,
+  AuthenticationError,
+} from '@/src/shared/errors/auth';
 
 const createStaffSchema = z.object({
   companyId: z.string(),
@@ -32,10 +35,7 @@ export async function POST(request: NextRequest) {
     const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Must be logged in' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Must be logged in' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -49,20 +49,21 @@ export async function POST(request: NextRequest) {
 
     const existingUser = await usersRepository.getUserByEmail(data.email);
     if (existingUser) {
-      const existingCompanyMembers = await companyMembersRepository.getCompanyMembersByUser(
-        existingUser.id
-      );
+      const existingCompanyMembers =
+        await companyMembersRepository.getCompanyMembersByUser(existingUser.id);
       if (existingCompanyMembers.length > 0) {
         return NextResponse.json(
-          { error: 'User is already a company member and cannot have a staff profile' },
+          {
+            error:
+              'User is already a company member and cannot have a staff profile',
+          },
           { status: 400 }
         );
       }
 
       const staffProfilesRepository = getStaffProfilesRepository();
-      const existingStaffProfiles = await staffProfilesRepository.getStaffProfilesByUser(
-        existingUser.id
-      );
+      const existingStaffProfiles =
+        await staffProfilesRepository.getStaffProfilesByUser(existingUser.id);
       if (existingStaffProfiles.length > 0) {
         return NextResponse.json(
           { error: 'User already has a staff profile' },
@@ -73,7 +74,10 @@ export async function POST(request: NextRequest) {
       const userId = existingUser.id;
       await transactionService.startTransaction(async (tx) => {
         const companiesRepository = getCompaniesRepository();
-        const company = await companiesRepository.getCompany(data.companyId, tx);
+        const company = await companiesRepository.getCompany(
+          data.companyId,
+          tx
+        );
         if (!company) {
           throw new NotFoundError('Company not found');
         }
@@ -87,16 +91,26 @@ export async function POST(request: NextRequest) {
           throw new NotFoundError('Branch does not belong to this company');
         }
 
-        const publicId = generateIdFromEntropySize(16);
-        let existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(publicId, tx);
+        const publicId = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
+        console.log('👤 [Staff API] Generated public ID:', publicId);
+        let existingStaff =
+          await staffProfilesRepository.getStaffProfileByPublicId(publicId, tx);
         let attempts = 0;
         while (existingStaff && attempts < 5) {
-          const newPublicId = generateIdFromEntropySize(16);
-          existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(newPublicId, tx);
+          const newPublicId = crypto
+            .randomUUID()
+            .replace(/-/g, '')
+            .substring(0, 16);
+          existingStaff =
+            await staffProfilesRepository.getStaffProfileByPublicId(
+              newPublicId,
+              tx
+            );
           attempts++;
         }
 
-        const staffId = generateIdFromEntropySize(10);
+        const staffId = crypto.randomUUID();
+        console.log('👤 [Staff API] Creating staff with ID:', staffId);
         await staffProfilesRepository.createStaffProfile(
           {
             id: staffId,
@@ -106,7 +120,9 @@ export async function POST(request: NextRequest) {
             displayName: data.displayName,
             position: data.position || null,
             avatarUrl: data.avatarUrl || null,
-            publicId: existingStaff ? generateIdFromEntropySize(16) : publicId,
+            publicId: existingStaff
+              ? crypto.randomUUID().replace(/-/g, '').substring(0, 16)
+              : publicId,
             active: true,
           },
           tx
@@ -146,17 +162,26 @@ export async function POST(request: NextRequest) {
         throw new NotFoundError('Branch does not belong to this company');
       }
 
-      const publicId = generateIdFromEntropySize(16);
+      const publicId = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
+      console.log('👤 [Staff API] Generated public ID:', publicId);
       const staffProfilesRepository = getStaffProfilesRepository();
-      let existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(publicId, tx);
+      let existingStaff =
+        await staffProfilesRepository.getStaffProfileByPublicId(publicId, tx);
       let attempts = 0;
       while (existingStaff && attempts < 5) {
-        const newPublicId = generateIdFromEntropySize(16);
-        existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(newPublicId, tx);
+        const newPublicId = crypto
+          .randomUUID()
+          .replace(/-/g, '')
+          .substring(0, 16);
+        existingStaff = await staffProfilesRepository.getStaffProfileByPublicId(
+          newPublicId,
+          tx
+        );
         attempts++;
       }
 
-      const staffId = generateIdFromEntropySize(10);
+      const staffId = crypto.randomUUID();
+      console.log('👤 [Staff API] Creating staff with ID:', staffId);
       await staffProfilesRepository.createStaffProfile(
         {
           id: staffId,
@@ -166,7 +191,9 @@ export async function POST(request: NextRequest) {
           displayName: data.displayName,
           position: data.position || null,
           avatarUrl: data.avatarUrl || null,
-          publicId: existingStaff ? generateIdFromEntropySize(16) : publicId,
+          publicId: existingStaff
+            ? crypto.randomUUID().replace(/-/g, '').substring(0, 16)
+            : publicId,
           active: true,
         },
         tx
@@ -183,10 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (err instanceof InputParseError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
     if (err instanceof UnauthenticatedError) {
@@ -204,22 +228,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (err instanceof AuthenticationError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
     if (err instanceof NotFoundError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 404 });
     }
 
     console.error('Create staff error:', err);
     return NextResponse.json(
-      { error: 'An error happened while creating the staff profile. Please try again later.' },
+      {
+        error:
+          'An error happened while creating the staff profile. Please try again later.',
+      },
       { status: 500 }
     );
   }
@@ -231,10 +252,7 @@ export async function GET(request: NextRequest) {
     const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Must be logged in' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Must be logged in' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -256,21 +274,26 @@ export async function GET(request: NextRequest) {
     let staff;
     if (branchId) {
       if (activeOnly) {
-        staff = await staffProfilesRepository.getActiveStaffProfilesByBranch(branchId);
+        staff =
+          await staffProfilesRepository.getActiveStaffProfilesByBranch(
+            branchId
+          );
       } else {
-        staff = await staffProfilesRepository.getStaffProfilesByBranch(branchId);
+        staff =
+          await staffProfilesRepository.getStaffProfilesByBranch(branchId);
       }
     } else {
-      staff = await staffProfilesRepository.getStaffProfilesByCompany(companyId);
+      staff =
+        await staffProfilesRepository.getStaffProfilesByCompany(companyId);
     }
 
     return NextResponse.json({ staff });
   } catch (err) {
-    if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (
+      err instanceof UnauthenticatedError ||
+      err instanceof UnauthorizedError
+    ) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('Get staff error:', err);
     return NextResponse.json(
@@ -279,5 +302,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-

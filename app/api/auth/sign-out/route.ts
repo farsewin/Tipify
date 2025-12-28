@@ -1,36 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '@/config';
-import { getAuthenticationService } from '@/src/service-locator';
-import { InputParseError } from '@/src/shared/errors/common';
-import { UnauthenticatedError } from '@/src/shared/errors/auth';
+import { auth } from '@/src/lib/auth';
 
 export async function POST(request: NextRequest) {
+  console.log('🔐 [SignOut API] Sign-out request received');
+
   const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+  const sessionToken = cookieStore.get(SESSION_COOKIE)?.value;
 
   try {
-    if (!sessionId) {
+    if (!sessionToken) {
+      console.log(
+        '⚠️ [SignOut API] No session token found, redirecting to sign-in'
+      );
       return NextResponse.json({ success: true, redirect: '/sign-in' });
     }
 
-    const authService = getAuthenticationService();
-    const { session } = await authService.validateSession(sessionId);
+    console.log('🔐 [SignOut API] Calling Better Auth sign-out...');
 
-    const { blankCookie } = await authService.invalidateSession(session.id);
-    cookieStore.set(blankCookie.name, blankCookie.value, blankCookie.attributes);
+    // Use Better Auth's sign-out API
+    await auth.api.signOut({
+      headers: request.headers,
+    });
 
-    return NextResponse.json({ success: true, redirect: '/sign-in' });
+    console.log('✅ [SignOut API] Better Auth sign-out successful');
+
+    // Clear the session cookie
+    const response = NextResponse.json({ success: true, redirect: '/sign-in' });
+    response.cookies.set(SESSION_COOKIE, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+    });
+
+    console.log('✅ [SignOut API] Session cookie cleared');
+    return response;
   } catch (err) {
-    if (err instanceof UnauthenticatedError || err instanceof InputParseError) {
-      return NextResponse.json({ success: true, redirect: '/sign-in' });
-    }
+    console.error('❌ [SignOut API] Error:', err);
 
-    console.error('Sign out error:', err);
-    return NextResponse.json(
-      { error: 'An error happened during sign out.' },
-      { status: 500 }
-    );
+    // Even on error, clear the cookie and redirect
+    const response = NextResponse.json({ success: true, redirect: '/sign-in' });
+    response.cookies.set(SESSION_COOKIE, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+    });
+
+    return response;
   }
 }
-

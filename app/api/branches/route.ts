@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
-import { generateIdFromEntropySize } from 'lucia';
 import { SESSION_COOKIE } from '@/config';
-import { getBranchesRepository, getCompaniesRepository } from '@/src/service-locator';
+import {
+  getBranchesRepository,
+  getCompaniesRepository,
+} from '@/src/service-locator';
 import { validateCompanyAccess } from '@/src/shared/helpers/access-control';
 import { NotFoundError, InputParseError } from '@/src/shared/errors/common';
-import { UnauthenticatedError, UnauthorizedError } from '@/src/shared/errors/auth';
+import {
+  UnauthenticatedError,
+  UnauthorizedError,
+} from '@/src/shared/errors/auth';
 
 const createBranchSchema = z.object({
   companyId: z.string(),
@@ -20,10 +25,7 @@ export async function POST(request: NextRequest) {
     const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Must be logged in' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Must be logged in' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -34,10 +36,7 @@ export async function POST(request: NextRequest) {
     const companiesRepository = getCompaniesRepository();
     const company = await companiesRepository.getCompany(data.companyId);
     if (!company) {
-      return NextResponse.json(
-        { error: 'Company not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
     const slug = data.name
@@ -58,13 +57,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const branchId = generateIdFromEntropySize(10);
+    const branchId = crypto.randomUUID();
+    console.log('📦 [Branches API] Creating branch with ID:', branchId);
     await branchesRepository.createBranch({
       id: branchId,
       companyId: data.companyId,
       name: data.name,
       location: data.location || null,
-      slug: `${slug}-${branchId.slice(0, 6)}`,
+      slug: `${slug}-${branchId.slice(0, 8)}`,
       active: true,
     });
 
@@ -78,13 +78,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (err instanceof InputParseError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
-    if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
+    if (
+      err instanceof UnauthenticatedError ||
+      err instanceof UnauthorizedError
+    ) {
       return NextResponse.json(
         { error: 'You do not have permission to create branches' },
         { status: 403 }
@@ -92,15 +92,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (err instanceof NotFoundError) {
-      return NextResponse.json(
-        { error: err.message },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 404 });
     }
 
     console.error('Create branch error:', err);
     return NextResponse.json(
-      { error: 'An error happened while creating the branch. Please try again later.' },
+      {
+        error:
+          'An error happened while creating the branch. Please try again later.',
+      },
       { status: 500 }
     );
   }
@@ -112,10 +112,7 @@ export async function GET(request: NextRequest) {
     const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: 'Must be logged in' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Must be logged in' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -134,18 +131,19 @@ export async function GET(request: NextRequest) {
     const branchesRepository = getBranchesRepository();
 
     if (activeOnly) {
-      const branches = await branchesRepository.getActiveBranchesByCompany(companyId);
+      const branches =
+        await branchesRepository.getActiveBranchesByCompany(companyId);
       return NextResponse.json({ branches });
     }
 
     const branches = await branchesRepository.getBranchesByCompany(companyId);
     return NextResponse.json({ branches });
   } catch (err) {
-    if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (
+      err instanceof UnauthenticatedError ||
+      err instanceof UnauthorizedError
+    ) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('Get branches error:', err);
     return NextResponse.json(
@@ -154,5 +152,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-

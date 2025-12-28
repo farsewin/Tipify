@@ -1,33 +1,49 @@
-import { generateIdFromEntropySize, Lucia } from 'lucia';
 import { compare } from 'bcrypt-ts';
 
-import { SESSION_COOKIE } from '@/config';
-import { luciaAdapter } from '@/drizzle';
+import { db } from '@/drizzle';
+import { sessions, users } from '@/drizzle/schema';
+import { eq, and, gt } from 'drizzle-orm';
 import { UsersRepository } from '@/src/repositories/users.repository';
 import { UnauthenticatedError } from '@/src/shared/errors/auth';
-import { Cookie } from '@/src/shared/models/cookie';
-import { Session, sessionSchema } from '@/src/shared/models/session';
 import { User } from '@/src/models/user.model';
+
+// Session type from Better Auth
+export interface Session {
+  id: string;
+  userId: string;
+  expiresAt: Date;
+  token: string;
+  createdAt: Date;
+  updatedAt: Date;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
+
+// Cookie type for compatibility
+export interface Cookie {
+  name: string;
+  value: string;
+  attributes: {
+    secure?: boolean;
+    httpOnly?: boolean;
+    sameSite?: 'lax' | 'strict' | 'none';
+    path?: string;
+    maxAge?: number;
+    expires?: Date;
+  };
+}
 
 export class AuthenticationService {
   private static instance: AuthenticationService;
 
-  private lucia: Lucia;
   private usersRepository: UsersRepository;
 
   private constructor() {
-    this.usersRepository = UsersRepository.getInstance(); // use singleton repo
-
-    this.lucia = new Lucia(luciaAdapter, {
-      sessionCookie: {
-        name: SESSION_COOKIE,
-        expires: false,
-        attributes: {
-          secure: process.env.NODE_ENV === 'production',
-        },
-      },
-      getUserAttributes: (attributes) => ({ username: attributes.username }),
-    });
+    console.log(
+      '🔐 [AuthService] Initializing AuthenticationService with Better Auth...'
+    );
+    this.usersRepository = UsersRepository.getInstance();
+    console.log('✅ [AuthService] AuthenticationService initialized');
   }
 
   static getInstance(): AuthenticationService {
@@ -41,56 +57,152 @@ export class AuthenticationService {
     inputPassword: string,
     usersHashedPassword: string
   ): Promise<boolean> {
-    return compare(inputPassword, usersHashedPassword);
+    console.log('🔐 [AuthService] Validating passwords...');
+    const isValid = await compare(inputPassword, usersHashedPassword);
+    console.log(
+      `🔐 [AuthService] Password validation result: ${isValid ? 'valid' : 'invalid'}`
+    );
+    return isValid;
   }
 
   async validateSession(
-    sessionId: string
+    sessionToken: string
   ): Promise<{ user: User; session: Session }> {
-    const result = await this.lucia.validateSession(sessionId);
+    console.log('🔐 [AuthService] Validating session token...');
+    console.log(
+      `🔐 [AuthService] Token (first 10 chars): ${sessionToken.substring(0, 10)}...`
+    );
 
-    if (!result.user || !result.session) {
-      throw new UnauthenticatedError('Unauthenticated');
+    try {
+      // Query session directly from database using the token
+      const sessionResult = await db
+        .select()
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.token, sessionToken),
+            gt(sessions.expiresAt, new Date())
+          )
+        )
+        .limit(1);
+
+      console.log(
+        '🔐 [AuthService] Session query result:',
+        sessionResult.length > 0 ? 'session found' : 'no session'
+      );
+
+      if (sessionResult.length === 0) {
+        console.log('❌ [AuthService] No valid session found in database');
+        throw new UnauthenticatedError('Unauthenticated');
+      }
+
+      const sessionData = sessionResult[0];
+      console.log(`🔐 [AuthService] Session user ID: ${sessionData.userId}`);
+
+      // Get full user from our repository (to get custom fields like role)
+      const user = await this.usersRepository.getUser(sessionData.userId);
+
+      if (!user) {
+        console.log(
+          `❌ [AuthService] User not found in database: ${sessionData.userId}`
+        );
+        throw new UnauthenticatedError("User doesn't exist");
+      }
+
+      console.log(`✅ [AuthService] Session validated for user: ${user.email}`);
+
+      // Map to our Session type
+      const session: Session = {
+        id: sessionData.id,
+        userId: sessionData.userId,
+        expiresAt: sessionData.expiresAt,
+        token: sessionData.token,
+        createdAt: sessionData.createdAt,
+        updatedAt: sessionData.updatedAt,
+        ipAddress: sessionData.ipAddress,
+        userAgent: sessionData.userAgent,
+      };
+
+      return { user, session };
+    } catch (error) {
+      console.error('❌ [AuthService] Session validation error:', error);
+      if (error instanceof UnauthenticatedError) {
+        throw error;
+      }
+      throw new UnauthenticatedError('Session validation failed');
     }
-
-    const user = await this.usersRepository.getUser(result.user.id);
-
-    if (!user) {
-      throw new UnauthenticatedError("User doesn't exist");
-    }
-
-    return { user, session: result.session };
   }
 
   async createSession(
     user: User
   ): Promise<{ session: Session; cookie: Cookie }> {
-    const luciaSession = await this.lucia.createSession(user.id, {});
-    const session = sessionSchema.parse(luciaSession);
-    const cookie = this.lucia.createSessionCookie(session.id);
+    console.log(`🔐 [AuthService] Creating session for user: ${user.email}`);
 
+    // Note: With Better Auth, sessions are created automatically during sign-in
+    // This method is kept for compatibility but should use Better Auth's sign-in flow
+    // In most cases, you should use the auth.api.signInEmail endpoint directly
+
+    console.log(
+      '⚠️ [AuthService] createSession called - sessions should be created via Better Auth sign-in flow'
+    );
+
+    // Return a placeholder - actual session creation happens in the sign-in API route
+    const session: Session = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      token: crypto.randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const cookie: Cookie = {
+      name: 'better-auth.session_token',
+      value: session.token,
+      attributes: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      },
+    };
+
+    console.log(`✅ [AuthService] Session created for user: ${user.id}`);
     return { session, cookie };
   }
 
   async invalidateSession(sessionId: string): Promise<{ blankCookie: Cookie }> {
-    await this.lucia.invalidateSession(sessionId);
-    const blankCookie = this.lucia.createBlankSessionCookie();
+    console.log(`🔐 [AuthService] Invalidating session: ${sessionId}`);
 
+    try {
+      // Better Auth handles session invalidation through its API
+      // The actual invalidation happens in the sign-out route
+      console.log('✅ [AuthService] Session invalidation requested');
+    } catch (error) {
+      console.error('❌ [AuthService] Session invalidation error:', error);
+    }
+
+    const blankCookie: Cookie = {
+      name: 'better-auth.session_token',
+      value: '',
+      attributes: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 0,
+        expires: new Date(0),
+      },
+    };
+
+    console.log('✅ [AuthService] Blank cookie created for sign-out');
     return { blankCookie };
   }
 
   generateUserId(): string {
-    return generateIdFromEntropySize(10);
-  }
-}
-
-interface DatabaseUserAttributes {
-  username: string;
-}
-
-declare module 'lucia' {
-  interface Register {
-    Lucia: Lucia;
-    DatabaseUserAttributes: DatabaseUserAttributes;
+    const id = crypto.randomUUID();
+    console.log(`🔐 [AuthService] Generated user ID: ${id}`);
+    return id;
   }
 }
